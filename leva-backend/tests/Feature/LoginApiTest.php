@@ -20,7 +20,7 @@ class LoginApiTest extends TestCase
             'status' => User::STATUS_PENDING,
         ]);
 
-        $response = $this->postJson('/api/login', [
+        $response = $this->postJson('/api/auth/login', [
             'email' => 'john@example.com',
             'password' => 'Password123!',
         ]);
@@ -58,7 +58,7 @@ class LoginApiTest extends TestCase
             'password' => Hash::make('Password123!'),
         ]);
 
-        $response = $this->postJson('/api/login', [
+        $response = $this->postJson('/api/auth/login', [
             'email' => 'john@example.com',
             'password' => 'wrong-password',
         ]);
@@ -72,7 +72,7 @@ class LoginApiTest extends TestCase
 
     public function test_login_requires_valid_payload(): void
     {
-        $response = $this->postJson('/api/login', [
+        $response = $this->postJson('/api/auth/login', [
             'email' => 'not-an-email',
             'password' => '',
         ]);

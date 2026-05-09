@@ -22,7 +22,7 @@ class MeApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $response = $this->getJson('/api/me');
+        $response = $this->getJson('/api/auth/me');
 
         $response
             ->assertOk()
@@ -58,7 +58,7 @@ class MeApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $response = $this->getJson('/api/me');
+        $response = $this->getJson('/api/auth/me');
 
         $response
             ->assertOk()
@@ -79,7 +79,7 @@ class MeApiTest extends TestCase
 
     public function test_me_requires_authentication(): void
     {
-        $response = $this->getJson('/api/me');
+        $response = $this->getJson('/api/auth/me');
 
         $response
             ->assertUnauthorized()

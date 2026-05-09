@@ -12,7 +12,7 @@ class RegisterApiTest extends TestCase
 
     public function test_user_can_register(): void
     {
-        $response = $this->postJson('/api/register', [
+        $response = $this->postJson('/api/auth/register', [
             'name' => 'John Doe',
             'email' => 'john@example.com',
             'password' => 'Password123!',
@@ -48,7 +48,7 @@ class RegisterApiTest extends TestCase
 
     public function test_register_requires_valid_payload(): void
     {
-        $response = $this->postJson('/api/register', [
+        $response = $this->postJson('/api/auth/register', [
             'name' => '',
             'email' => 'not-an-email',
             'password' => 'Password123!',
@@ -66,7 +66,7 @@ class RegisterApiTest extends TestCase
             'email' => 'john@example.com',
         ]);
 
-        $response = $this->postJson('/api/register', [
+        $response = $this->postJson('/api/auth/register', [
             'name' => 'John Doe',
             'email' => 'john@example.com',
             'password' => 'Password123!',
