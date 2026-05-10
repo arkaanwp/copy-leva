@@ -20,7 +20,8 @@ class TaskDecompositionJob implements ShouldQueue
 
     public function __construct(
         public string $taskId
-    ) {}
+    ) {
+    }
 
     public function handle(GeminiService $geminiService, PdfTextExtractor $pdfTextExtractor): void
     {

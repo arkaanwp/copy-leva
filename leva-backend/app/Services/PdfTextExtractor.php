@@ -2,20 +2,19 @@
 
 namespace App\Services;
 
-use RuntimeException;
-use Symfony\Component\Process\Process;
+use Exception;
+use Smalot\PdfParser\Parser;
 
 class PdfTextExtractor
 {
     public function extract(string $path): string
     {
-        $process = new Process(['pdftotext', '-layout', $path, '-']);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            throw new RuntimeException('Failed to extract PDF text.');
+        try {
+            $parser = new Parser();
+            $pdf = $parser->parseFile($path);
+            return trim($pdf->getText());
+        } catch (Exception $e) {
+            throw new \RuntimeException('Failed to extract PDF text: ' . $e->getMessage());
         }
-
-        return trim($process->getOutput());
     }
 }

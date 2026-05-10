@@ -200,4 +200,38 @@ Gunakan schema:
 }
 PROMPT;
     }
+    public function generateChatReply(string $message, array $contextTools): array
+    {
+        $contextStr = "";
+        foreach ($contextTools as $index => $tool) {
+            $contextStr .= ($index + 1) . ". Name: {$tool->name}, Description: {$tool->description}, Category: {$tool->category}, URL: {$tool->url}\n";
+        }
+
+        $systemPrompt = "Anda adalah asisten AI yang merekomendasikan alat untuk mahasiswa. Hanya gunakan tools yang ada di context berikut. Dilarang merekomendasikan tools lain. Jawab dalam bahasa Indonesia. \n\nContext Tools:\n" . ($contextStr ?: "Tidak ada alat spesifik yang ditemukan.");
+
+        $response = $this->request(
+            '/models/'.config('services.gemini.chat_model').':generateContent',
+            [
+                'contents' => [
+                    [
+                        'role' => 'user',
+                        'parts' => [
+                            ['text' => $systemPrompt . "\n\nPertanyaan User:\n" . $message],
+                        ],
+                    ]
+                ],
+                'generationConfig' => [
+                    'temperature' => 0.4,
+                ],
+            ]
+        );
+
+        $rawText = data_get($response, 'candidates.0.content.parts.0.text');
+
+        if (!is_string($rawText) || trim($rawText) === '') {
+            throw new \RuntimeException('Gemini returned an empty chat response.');
+        }
+
+        return ['reply' => $rawText];
+    }
 }

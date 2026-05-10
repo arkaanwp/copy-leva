@@ -5,6 +5,9 @@ use App\Http\Controllers\BookmarkController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\ToolController;
+use App\Http\Controllers\ChatController;
+use App\Http\Controllers\ScraperWebhookController;
+use App\Http\Middleware\ScraperSecret;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -34,4 +37,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookmarks', [BookmarkController::class, 'index']);
     Route::post('/bookmarks', [BookmarkController::class, 'store']);
     Route::delete('/bookmarks/{toolId}', [BookmarkController::class, 'destroy']);
+
+    Route::middleware('throttle:30,1')->group(function () {
+        Route::post('/chat', [ChatController::class, 'send']);
+        Route::get('/chat/history', [ChatController::class, 'history']);
+        Route::delete('/chat/history', [ChatController::class, 'clearHistory']);
+    });
 });
+
+Route::post('/internal/scraper-webhook', [ScraperWebhookController::class, 'store'])
+    ->middleware(ScraperSecret::class);
