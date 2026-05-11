@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { mockTools } from '../data/mockData';
+import { bookmarkService } from '../services/bookmarkService';
+import { PRIORITY_LABELS } from '../utils/fieldMapper';
 import Modal from '../components/Modal';
 import AppIcon from '../components/AppIcon';
 
-const PRIORITY_FILTERS = ['Semua', 'Prioritas Tinggi', 'Sangat Bagus', 'Coba Nanti'];
+const PRIORITY_OPTIONS = [
+  { value: 'all', label: 'Semua' },
+  ...Object.entries(PRIORITY_LABELS).map(([key, meta]) => ({
+    value: key,
+    label: meta.label,
+  })),
+];
 const CATEGORY_FILTERS = ['Semua', 'Research', 'Writing', 'Coding', 'Data', 'Academic', 'Productivity'];
 const SORT_OPTIONS = [
   { value: 'latest', label: 'Terbaru disimpan' },
@@ -29,14 +36,14 @@ const INDONESIAN_MONTH_MAP = {
   des: 11,
 };
 
-const PRIORITY_KEY_MAP = {
-  must_try: 'high',
-  very_good: 'good',
-  niche: 'later',
-  optional: 'later',
+const normalizePricingType = (pricingType) => {
+  if (!pricingType || typeof pricingType !== 'string') return 'freemium';
+  const normalized = pricingType.toLowerCase();
+  return normalized === 'open_source' ? 'opensource' : normalized;
 };
 
 const pricingMeta = (pricingType) => {
+  const normalizedType = normalizePricingType(pricingType);
   const map = {
     free: { label: 'Free', bg: '#DCFCE7', color: '#15803D' },
     freemium: { label: 'Freemium', bg: '#FEF3C7', color: '#B45309' },
@@ -44,7 +51,7 @@ const pricingMeta = (pricingType) => {
     opensource: { label: 'Open-source', bg: '#DBEAFE', color: '#1D4ED8' },
   };
 
-  return map[pricingType] || map.freemium;
+  return map[normalizedType] || map.freemium;
 };
 
 const parseSavedAtToTimestamp = (savedAt, fallback = 0) => {
@@ -62,17 +69,30 @@ const parseSavedAtToTimestamp = (savedAt, fallback = 0) => {
   return new Date(year, month, day).getTime();
 };
 
+const formatSavedAtLabel = (savedAt) => {
+  if (!savedAt) return '';
+  const parsedDate = new Date(savedAt);
+  if (!Number.isNaN(parsedDate.getTime())) {
+    return parsedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  return savedAt;
+};
+
+const resolveToolUrl = (url) => {
+  if (!url) return '#';
+  return url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
+};
+
 // Badge component for priority
 function PriorityBadge({ priorityKey, label }) {
-  const styles = {
-    high:  { background: '#FEE2E2', color: '#DC2626' },
-    good:  { background: '#D1FAE5', color: '#059669' },
-    later: { background: '#DBEAFE', color: '#2563EB' },
-  };
-  const s = styles[priorityKey] || styles.later;
+  const meta = priorityKey ? PRIORITY_LABELS[priorityKey] : null;
+  const style = meta
+    ? { background: meta.bg, color: meta.color }
+    : { background: '#E2E8F0', color: '#64748B' };
+  const text = label || meta?.label || 'Menunggu';
   return (
-    <span style={{ ...s, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap' }}>
-      {label}
+    <span style={{ ...style, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+      {text}
     </span>
   );
 }
@@ -109,6 +129,20 @@ function SavedToolCard({ tool, onDelete }) {
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <PricingBadge pricingType={tool.pricingType} />
           <PriorityBadge priorityKey={tool.priorityKey} label={tool.priority} />
+          {tool.taggingStatus === 'pending' && (
+            <span style={{
+              background: '#FEF3C7',
+              color: '#B45309',
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '3px 10px',
+              borderRadius: 999,
+              whiteSpace: 'nowrap',
+              animation: 'pulse 1.5s infinite',
+            }}>
+              AI sedang men-tag...
+            </span>
+          )}
         </div>
       </div>
 
@@ -144,7 +178,7 @@ function SavedToolCard({ tool, onDelete }) {
       {/* Actions */}
       <div style={{ display: 'flex', gap: 8 }}>
         <a
-          href={`https://${tool.url}`} target="_blank" rel="noreferrer"
+          href={resolveToolUrl(tool.url)} target="_blank" rel="noreferrer"
           style={{
             flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: 'var(--color-primary)', color: '#fff',
@@ -177,8 +211,12 @@ function SavedToolCard({ tool, onDelete }) {
 
 // Main Library View
 export default function LibraryView() {
-  const { savedTools, setSavedTools, setActiveView, removeToolFromLibrary } = useApp();
-  const [priorityFilter, setPriorityFilter] = useState('Semua');
+  const {
+    setActiveView,
+    showToast,
+    refreshSavedTools,
+  } = useApp();
+  const [priorityFilter, setPriorityFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('Semua');
   const [searchVal, setSearchVal] = useState('');
   const [debouncedSearchVal, setDebouncedSearchVal] = useState('');
@@ -186,52 +224,97 @@ export default function LibraryView() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [toolToDelete, setToolToDelete] = useState(null);
   const [newTool, setNewTool] = useState({ name: '', url: '', note: '', category: 'Research' });
+  const [bookmarks, setBookmarks] = useState([]);
+  const [pagination, setPagination] = useState({ current_page: 1, total: 0, last_page: 1 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [tags, setTags] = useState([]);
+  const [selectedTag, setSelectedTag] = useState('');
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      setDebouncedSearchVal(searchVal.trim().toLowerCase());
+      setDebouncedSearchVal(searchVal.trim());
     }, 300);
 
     return () => clearTimeout(timeoutId);
   }, [searchVal]);
 
-  const ratingByName = useMemo(() => {
-    const map = new Map();
-    mockTools.forEach((tool) => {
-      map.set(tool.name.toLowerCase(), tool.rating ?? 0);
-    });
-    return map;
+  const fetchBookmarks = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const params = { sort: sortBy };
+      if (priorityFilter !== 'all') {
+        params.priority = priorityFilter;
+      }
+      if (categoryFilter !== 'Semua') {
+        params.category = categoryFilter;
+      }
+      if (debouncedSearchVal) {
+        params.q = debouncedSearchVal;
+      }
+
+      const data = await bookmarkService.list(params);
+      setBookmarks(data.bookmarks ?? []);
+      setPagination(data.pagination ?? { current_page: 1, total: 0, last_page: 1 });
+    } catch (error) {
+      const message = error.response?.data?.message ?? 'Gagal memuat Library. Coba lagi.';
+      setErrorMessage(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [priorityFilter, categoryFilter, debouncedSearchVal, sortBy]);
+
+  const fetchTags = useCallback(async () => {
+    try {
+      const tagList = await bookmarkService.tags();
+      setTags(Array.isArray(tagList) ? tagList : []);
+    } catch {
+      setTags([]);
+    }
   }, []);
 
-  const pricingByName = useMemo(() => {
-    const map = new Map();
-    mockTools.forEach((tool) => {
-      map.set(tool.name.toLowerCase(), tool.pricingType ?? 'freemium');
-    });
-    return map;
-  }, []);
+  useEffect(() => {
+    fetchBookmarks();
+  }, [fetchBookmarks]);
 
-  const normalizedSavedTools = useMemo(() => savedTools.map((item, index) => {
+  useEffect(() => {
+    fetchTags();
+  }, [fetchTags]);
+
+  useEffect(() => {
+    if (refreshSavedTools) {
+      refreshSavedTools().catch(() => {});
+    }
+  }, [refreshSavedTools]);
+
+  useEffect(() => {
+    if (searchVal && selectedTag && searchVal !== selectedTag) {
+      setSelectedTag('');
+    }
+  }, [searchVal, selectedTag]);
+
+  const normalizedSavedTools = useMemo(() => bookmarks.map((item, index) => {
     const baseTool = item?.tool ?? item ?? {};
     const name = baseTool.name ?? item?.name ?? '';
     const pricingTypeRaw = baseTool.pricing_type ?? baseTool.pricingType ?? item?.pricingType ?? 'freemium';
-    const pricingType = typeof pricingTypeRaw === 'string' ? pricingTypeRaw.toLowerCase() : 'freemium';
-    const utilityPriority = item?.utility_priority;
-    const priorityKey = utilityPriority
-      ? (PRIORITY_KEY_MAP[utilityPriority] ?? 'later')
-      : (item?.priorityKey ?? 'later');
-    const priorityLabel = item?.priority_label ?? item?.priority ?? 'Sangat Bagus';
+    const pricingType = normalizePricingType(pricingTypeRaw);
+    const utilityPriority = item?.utility_priority ?? item?.priorityKey ?? null;
+    const priorityLabel = item?.priority_label
+      ?? (utilityPriority ? PRIORITY_LABELS[utilityPriority]?.label : null)
+      ?? item?.priority
+      ?? 'Menunggu';
     const keywords = Array.isArray(item?.semantic_keywords)
       ? item.semantic_keywords
       : (Array.isArray(item?.keywords) ? item.keywords : []);
 
-    const savedAtDate = item?.saved_at ? new Date(item.saved_at) : null;
-    const hasValidDate = savedAtDate && !Number.isNaN(savedAtDate.getTime());
-    const savedAt = hasValidDate
-      ? savedAtDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-      : (item?.savedAt ?? '');
-
-    const savedTimestamp = hasValidDate ? savedAtDate.getTime() : item?.savedTimestamp;
+    const rawSavedAt = item?.saved_at ?? item?.savedAt ?? '';
+    const savedAt = formatSavedAtLabel(rawSavedAt);
+    const parsedDate = rawSavedAt ? new Date(rawSavedAt) : null;
+    const savedTimestamp = parsedDate && !Number.isNaN(parsedDate.getTime())
+      ? parsedDate.getTime()
+      : (item?.savedTimestamp ?? parseSavedAtToTimestamp(rawSavedAt, 0));
 
     return {
       id: item?.id ?? baseTool.id ?? `${name}-${index}`,
@@ -240,7 +323,7 @@ export default function LibraryView() {
       url: baseTool.url ?? item?.url ?? '',
       category: baseTool.category ?? item?.category ?? 'Research',
       priority: priorityLabel,
-      priorityKey,
+      priorityKey: utilityPriority,
       pricingType,
       rating: Number(baseTool.rating ?? item?.rating ?? 0),
       description: baseTool.description ?? item?.description ?? '',
@@ -249,32 +332,16 @@ export default function LibraryView() {
       savedAt,
       savedTimestamp,
       taggingStatus: item?.tagging_status ?? item?.taggingStatus,
+      utilityPriority,
     };
-  }), [savedTools]);
+  }), [bookmarks]);
 
   const filtered = useMemo(() => {
-    const base = normalizedSavedTools.filter((tool) => {
-      const matchPriority = priorityFilter === 'Semua' || tool.priority === priorityFilter;
-      const matchCategory = categoryFilter === 'Semua' || tool.category === categoryFilter;
-
-      const searchableText = [
-        tool.name,
-        tool.description,
-        tool.note,
-        tool.tags,
-        tool.keywords?.join(' '),
-      ].filter(Boolean).join(' ').toLowerCase();
-
-      const matchSearch = !debouncedSearchVal || searchableText.includes(debouncedSearchVal);
-      return matchPriority && matchCategory && matchSearch;
-    });
-
     /* UI/UX Fix: Step 7 — Display as many choices as possible (grid vs scroll). Drop-down untuk sorting meminimalisir pencarian manual. Survei: 52,5% kesulitan temukan referensi tersimpan. */
-    const withMeta = base.map((tool, index) => ({
+    const withMeta = normalizedSavedTools.map((tool) => ({
       ...tool,
       _timestamp: tool.savedTimestamp ?? parseSavedAtToTimestamp(tool.savedAt, 0),
-      _rating: tool.rating ?? ratingByName.get((tool.name ?? '').toLowerCase()) ?? 0,
-      pricingType: tool.pricingType ?? pricingByName.get((tool.name ?? '').toLowerCase()) ?? 'freemium',
+      _rating: tool.rating ?? 0,
     }));
 
     withMeta.sort((a, b) => {
@@ -287,17 +354,43 @@ export default function LibraryView() {
     });
 
     return withMeta;
-  }, [normalizedSavedTools, priorityFilter, categoryFilter, debouncedSearchVal, sortBy, ratingByName, pricingByName]);
+  }, [normalizedSavedTools, sortBy]);
+
+  const hasPendingTags = normalizedSavedTools.some((tool) => tool.taggingStatus === 'pending');
+
+  useEffect(() => {
+    if (!hasPendingTags) return;
+
+    const intervalId = setInterval(() => {
+      fetchBookmarks();
+      fetchTags();
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [hasPendingTags, fetchBookmarks, fetchTags]);
 
   const handleDeleteRequest = (tool) => {
     /* UI/UX Fix: Step 6 — Output device harus memberi respond jelas ke aksi user. Step 7 — Aksi destruktif (hapus) harus ada safeguard/konfirmasi. Survei: 52,5% user sulit temukan referensi. */
     setToolToDelete(tool);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!toolToDelete) return;
-    removeToolFromLibrary(toolToDelete.id);
-    setToolToDelete(null);
+
+    try {
+      const toolId = toolToDelete.toolId ?? toolToDelete.id;
+      await bookmarkService.delete(toolId);
+      showToast('Tool berhasil dihapus', 'info');
+      setToolToDelete(null);
+      fetchBookmarks();
+      fetchTags();
+      if (refreshSavedTools) {
+        refreshSavedTools().catch(() => {});
+      }
+    } catch (error) {
+      const message = error.response?.data?.message ?? 'Gagal menghapus tool. Coba lagi.';
+      showToast(message, 'error');
+    }
   };
 
   const handleAddTool = () => {
@@ -317,7 +410,7 @@ export default function LibraryView() {
       rating: 0,
       note: newTool.note,
     };
-    setSavedTools(prev => [entry, ...prev]);
+    setBookmarks(prev => [entry, ...prev]);
     setNewTool({ name: '', url: '', note: '', category: 'Research' });
     setShowAddModal(false);
   };
@@ -329,15 +422,29 @@ export default function LibraryView() {
     boxSizing: 'border-box', marginBottom: 12,
   };
 
-  const isLibraryEmpty = normalizedSavedTools.length === 0;
+  const isLibraryEmpty = !isLoading && filtered.length === 0 && !errorMessage;
 
   const handleResetFilters = () => {
-    setPriorityFilter('Semua');
+    setPriorityFilter('all');
     setCategoryFilter('Semua');
     setSearchVal('');
     setDebouncedSearchVal('');
     setSortBy('latest');
+    setSelectedTag('');
   };
+
+  const handleTagClick = (tag) => {
+    if (tag === selectedTag) {
+      setSelectedTag('');
+      setSearchVal('');
+      return;
+    }
+
+    setSelectedTag(tag);
+    setSearchVal(tag);
+  };
+
+  const totalCount = pagination?.total ?? filtered.length;
 
   return (
     <div className="main-content view-enter" style={{ padding: '32px 36px', maxWidth: 1100, margin: '0 auto' }}>
@@ -379,9 +486,9 @@ export default function LibraryView() {
           {/* Stats row */}
           <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
             {[
-              { label: 'Total Tools', val: normalizedSavedTools.length, icon: 'folder' },
-              { label: 'Prioritas Tinggi', val: normalizedSavedTools.filter(t => t.priorityKey === 'high').length, icon: 'flame' },
-              { label: 'Sangat Bagus', val: normalizedSavedTools.filter(t => t.priorityKey === 'good').length, icon: 'check' },
+              { label: 'Total Tools', val: filtered.length, icon: 'folder' },
+              { label: 'Wajib Dicoba', val: filtered.filter(t => t.priorityKey === 'must_try').length, icon: 'flame' },
+              { label: 'Sangat Bagus', val: filtered.filter(t => t.priorityKey === 'very_good').length, icon: 'check' },
             ].map(stat => (
               <div key={stat.label} className="card" style={{ flex: 1, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ display: 'flex' }}><AppIcon name={stat.icon} size={22} /></span>
@@ -418,23 +525,23 @@ export default function LibraryView() {
                   ?
                 </span>
               </div>
-              {PRIORITY_FILTERS.map(f => (
+              {PRIORITY_OPTIONS.map(option => (
                 <button
-                  key={f}
+                  key={option.value}
                   type="button"
-                  onClick={() => setPriorityFilter(f)}
+                  onClick={() => setPriorityFilter(option.value)}
                   style={{
                     padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
-                    background: priorityFilter === f ? 'var(--color-primary-light)' : 'transparent',
-                    color: priorityFilter === f ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                    fontWeight: priorityFilter === f ? 600 : 400,
+                    background: priorityFilter === option.value ? 'var(--color-primary-light)' : 'transparent',
+                    color: priorityFilter === option.value ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                    fontWeight: priorityFilter === option.value ? 600 : 400,
                     marginBottom: 2, transition: 'all 0.15s',
                     border: 'none',
                     width: '100%',
                     textAlign: 'left',
                   }}
                 >
-                  {f}
+                  {option.label}
                 </button>
               ))}
 
@@ -458,13 +565,41 @@ export default function LibraryView() {
                   {f}
                 </button>
               ))}
+
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.07em', margin: '20px 0 8px' }}>TAG</p>
+              {tags.length === 0 ? (
+                <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: 0 }}>
+                  Belum ada tag.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {tags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => handleTagClick(tag)}
+                      style={{
+                        border: '1px solid var(--color-border)',
+                        background: selectedTag === tag ? 'var(--color-primary-light)' : '#fff',
+                        color: selectedTag === tag ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                        borderRadius: 999,
+                        padding: '4px 10px',
+                        fontSize: 11,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      #{tag}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Tool Cards Grid */}
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
                 <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: 0 }}>
-                  Menampilkan <strong>{filtered.length}</strong> dari {normalizedSavedTools.length} tools
+                  Menampilkan <strong>{filtered.length}</strong> dari {totalCount} tools
                 </p>
 
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--color-text-secondary)' }}>
@@ -489,7 +624,22 @@ export default function LibraryView() {
                 </label>
               </div>
 
-              {filtered.length === 0 ? (
+              {errorMessage ? (
+                <div style={{ textAlign: 'center', padding: '56px 20px' }}>
+                  <p style={{ margin: '0 0 14px', color: 'var(--color-text-secondary)', fontSize: 14, lineHeight: 1.7 }}>
+                    {errorMessage}
+                  </p>
+                  <button className="btn-secondary" onClick={fetchBookmarks}>
+                    Coba Lagi
+                  </button>
+                </div>
+              ) : isLoading ? (
+                <div style={{ textAlign: 'center', padding: '56px 20px' }}>
+                  <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 14 }}>
+                    Memuat Library...
+                  </p>
+                </div>
+              ) : filtered.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '56px 20px' }}>
                   <span style={{ display: 'inline-flex', position: 'relative' }}>
                     <AppIcon name="search" size={48} color="#94A3B8" />
