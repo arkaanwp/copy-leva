@@ -10,8 +10,8 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null); // null = not onboarded yet
   const [token, setToken] = useState(() => localStorage.getItem('leva_token'));
 
-  // Active view: 'onboarding' | 'dashboard' | 'chat' | 'library' | 'profile'
-  const [activeView, setActiveViewState] = useState('onboarding');
+  // Active view: 'landing' | 'onboarding' | 'dashboard' | 'chat' | 'library' | 'profile'
+  const [activeView, setActiveViewState] = useState('landing');
 
   // Unsaved changes guards
   const [chatHasDraft, setChatHasDraft] = useState(false);
@@ -48,7 +48,7 @@ export function AppProvider({ children }) {
         if (!isMounted) return;
         setToken(null);
         setUser(null);
-        setActiveViewState('onboarding');
+        setActiveViewState('landing');
       }
     };
 

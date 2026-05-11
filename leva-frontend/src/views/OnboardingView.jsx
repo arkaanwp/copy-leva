@@ -164,6 +164,12 @@ export default function OnboardingView() {
     return () => window.removeEventListener('leva:escape', handleGlobalEscape);
   }, []);
 
+  useEffect(() => {
+    const openLogin = () => setShowLoginModal(true);
+    window.addEventListener('leva:open-login', openLogin);
+    return () => window.removeEventListener('leva:open-login', openLogin);
+  }, []);
+
   const update = (key, val) => {
     setForm(f => ({ ...f, [key]: val }));
     setErrors(e => ({ ...e, [key]: '' }));

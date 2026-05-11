@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
+import LandingView from './views/LandingView';
 import OnboardingView from './views/OnboardingView';
 import DashboardView from './views/DashboardView';
 import ChatWorkspaceView from './views/ChatWorkspaceView';
@@ -120,6 +121,15 @@ function AppInner() {
           </button>
         ))}
       </div>
+    );
+  }
+
+  if (activeView === 'landing') {
+    return (
+      <>
+        <LandingView />
+        {toasts.length > 0 && <Toast toasts={toasts} onClose={dismissToast} />}
+      </>
     );
   }
 
