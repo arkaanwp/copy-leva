@@ -15,13 +15,13 @@ const tagClass = (cat) => {
   return map[cat] || 'tag tag-research';
 };
 
-const pricingMeta = (pricingType) => {
+const pricingMeta = (pricingType, t) => {
   const normalizedType = pricingType === 'open_source' ? 'opensource' : pricingType;
   const map = {
-    free: { label: 'Free', bg: '#DCFCE7', color: '#15803D' },
-    freemium: { label: 'Freemium', bg: '#FEF3C7', color: '#B45309' },
-    paid: { label: 'Berbayar', bg: '#FEE2E2', color: '#B91C1C' },
-    opensource: { label: 'Open-source', bg: '#DBEAFE', color: '#1D4ED8' },
+    free: { label: t('tool.free'), bg: '#DCFCE7', color: '#15803D' },
+    freemium: { label: t('tool.freemium'), bg: '#FEF3C7', color: '#B45309' },
+    paid: { label: t('tool.paid'), bg: '#FEE2E2', color: '#B91C1C' },
+    opensource: { label: t('tool.openSource'), bg: '#DBEAFE', color: '#1D4ED8' },
   };
 
   return map[normalizedType] || map.free;
@@ -61,14 +61,22 @@ const normalizeTool = (tool) => {
   };
 };
 
+const getCategoryLabel = (cat, t) => {
+  if (!cat) return '';
+  if (cat === 'Semua' || cat === 'All') return t('category.all');
+  return t(`category.${cat.toLowerCase()}`) || cat;
+};
+
 function PricingBadge({ pricingType }) {
-  const price = pricingMeta(pricingType);
+  const { t } = useApp();
+  const price = pricingMeta(pricingType, t);
   const tooltipByType = {
-    free: 'Sepenuhnya gratis untuk digunakan',
-    freemium: 'Fitur dasar gratis, fitur premium berbayar',
-    paid: 'Memerlukan langganan berbayar untuk akses penuh',
+    free: t('tool.freeTooltip'),
+    freemium: t('tool.freemiumTooltip'),
+    paid: t('tool.paidTooltip'),
+    opensource: t('tool.openSourceTooltip'),
   };
-  const tooltipText = tooltipByType[pricingType] || '';
+  const tooltipText = tooltipByType[pricingType] || tooltipByType.free;
 
   return (
     <span className={tooltipText ? 'tooltip-host' : undefined} data-tooltip={tooltipText || undefined} style={{ display: 'inline-flex' }}>
@@ -89,15 +97,16 @@ function PricingBadge({ pricingType }) {
 }
 
 function ToolTooltip({ tool, show }) {
-  const price = pricingMeta(tool.pricingType);
+  const { t } = useApp();
+  const price = pricingMeta(tool.pricingType, t);
   const detailText = tool.detailDesc || tool.desc;
 
   return (
     <div className={`tool-tooltip ${show ? 'visible' : ''}`}>
       {/* UI/UX Fix: Step 7 — Tooltip/balloon tip sebagai presentation control untuk info harga. Survei: 33,9% user terbentur paywall; Persona Bima butuh filter harga instan. */}
       <p className="tool-tooltip-title">{tool.name}</p>
-      <p className="tool-tooltip-line">Status: <strong style={{ color: price.color }}>{price.label}</strong></p>
-      <p className="tool-tooltip-line">Website: {displayToolUrl(tool.url)}</p>
+      <p className="tool-tooltip-line">{t('tool.status')}: <strong style={{ color: price.color }}>{price.label}</strong></p>
+      <p className="tool-tooltip-line">{t('tool.website')}: {displayToolUrl(tool.url)}</p>
       <p className="tool-tooltip-desc">{detailText}</p>
       <span className="tool-tooltip-arrow" />
     </div>
@@ -116,6 +125,7 @@ function StarRating({ rating }) {
 
 // --- Featured Tool Card (large, horizontal scroll)
 function FeaturedToolCard({ tool, onSave, isSaved, isSaving }) {
+  const { t } = useApp();
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipTimerRef = useRef(null);
   const handleSave = () => {
@@ -166,7 +176,7 @@ function FeaturedToolCard({ tool, onSave, isSaved, isSaving }) {
       <ToolTooltip tool={tool} show={showTooltip} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-        <span className={tagClass(tool.category)}>{tool.category}</span>
+        <span className={tagClass(tool.category)}>{getCategoryLabel(tool.category, t)}</span>
         <PricingBadge pricingType={tool.pricingType} />
       </div>
 
@@ -197,7 +207,7 @@ function FeaturedToolCard({ tool, onSave, isSaved, isSaving }) {
           }}
         >
           {/* UI/UX Fix: Step 6 — Output device harus memberi respond jelas ke aksi user. Step 7 — Aksi destruktif (hapus) harus ada safeguard/konfirmasi. Survei: 52,5% user sulit temukan referensi. */}
-          {isSaved ? 'Tersimpan ✓' : isSaving ? 'Menyimpan...' : 'Simpan'}
+          {isSaved ? t('tool.saved') : isSaving ? t('tool.saving') : t('tool.save')}
         </button>
         <a
           href={resolveToolUrl(tool.url)} target="_blank" rel="noreferrer"
@@ -209,7 +219,7 @@ function FeaturedToolCard({ tool, onSave, isSaved, isSaving }) {
           }}
         >
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            Buka <AppIcon name="external-link" size={14} color="#fff" />
+            {t('tool.open')} <AppIcon name="external-link" size={14} color="#fff" />
           </span>
         </a>
       </div>
@@ -219,6 +229,7 @@ function FeaturedToolCard({ tool, onSave, isSaved, isSaving }) {
 
 // --- Small Tool Card (grid)
 function SmallToolCard({ tool, onSave, isSaved, isSaving }) {
+  const { t } = useApp();
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipTimerRef = useRef(null);
   const handleSave = () => {
@@ -267,7 +278,7 @@ function SmallToolCard({ tool, onSave, isSaved, isSaving }) {
       <ToolTooltip tool={tool} show={showTooltip} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <span className={tagClass(tool.category)}>{tool.category}</span>
+        <span className={tagClass(tool.category)}>{getCategoryLabel(tool.category, t)}</span>
         <PricingBadge pricingType={tool.pricingType} />
       </div>
 
@@ -279,7 +290,7 @@ function SmallToolCard({ tool, onSave, isSaved, isSaving }) {
         <button
           disabled={isSaved || isSaving}
           onClick={handleSave}
-          title="Simpan ke Library"
+          title={t('tool.save') || "Simpan ke Library"}
           style={{
             background: isSaved ? '#E2E8F0' : 'var(--color-primary-light)',
             color: isSaved ? '#64748B' : 'var(--color-primary)',
@@ -291,7 +302,7 @@ function SmallToolCard({ tool, onSave, isSaved, isSaving }) {
             fontWeight: 700,
           }}
         >
-          {isSaved ? 'Tersimpan ✓' : isSaving ? 'Menyimpan...' : 'Simpan'}
+          {isSaved ? t('tool.saved') : isSaving ? t('tool.saving') : t('tool.save')}
         </button>
       </div>
       <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
@@ -315,13 +326,14 @@ function DailyProgressWidget({
   hasLatestTask,
   onContinue,
 }) {
+  const { t } = useApp();
   const progressPct = isLoading ? 0 : stats.progressPct;
   const statValue = (value) => (isLoading ? '--' : value);
 
   const statItems = [
-    { label: 'Tugas Hari Ini', value: statValue(stats.tasksToday) },
-    { label: 'Sub-tugas Selesai', value: statValue(stats.doneToday) },
-    { label: 'Sub-tugas Tertunda', value: statValue(stats.pendingToday) },
+    { label: t('dashboard.todayTasks'), value: statValue(stats.tasksToday) },
+    { label: t('dashboard.completedSubtasks'), value: statValue(stats.doneToday) },
+    { label: t('dashboard.pendingSubtasks'), value: statValue(stats.pendingToday) },
   ];
 
   return (
@@ -332,7 +344,7 @@ function DailyProgressWidget({
             {greeting}, {firstName}! <AppIcon name={greetIcon} size={20} />
           </h1>
           <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--color-text-secondary)' }}>
-            Ringkasan produktivitasmu hari ini.
+            {t('dashboard.summarySubtitle')}
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -342,7 +354,7 @@ function DailyProgressWidget({
             background: 'var(--color-secondary-light)', color: 'var(--color-secondary)',
             padding: '3px 10px', borderRadius: 999,
           }}>
-            <AppIcon name="refresh" size={12} /> Diperbarui otomatis setiap hari
+            <AppIcon name="refresh" size={12} /> {t('dashboard.autoUpdatedDaily')}
           </span>
         </div>
       </div>
@@ -358,8 +370,8 @@ function DailyProgressWidget({
 
       <div style={{ marginTop: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
-          <span>Progress hari ini</span>
-          <span>{progressPct}% selesai</span>
+          <span>{t('dashboard.todayProgress')}</span>
+          <span>{progressPct}% {t('dashboard.completed')}</span>
         </div>
         <div style={{ height: 8, borderRadius: 999, background: 'var(--color-border)', overflow: 'hidden' }}>
           <div style={{ width: `${progressPct}%`, height: '100%', background: 'var(--color-secondary)', transition: 'width 0.4s ease' }} />
@@ -368,7 +380,7 @@ function DailyProgressWidget({
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
         <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>
-          {hasLatestTask ? 'Lanjutkan tugas terakhir yang sudah kamu buat.' : 'Belum ada tugas yang bisa dilanjutkan.'}
+          {hasLatestTask ? t('dashboard.continuePrompt') : t('dashboard.noTaskToContinue')}
         </p>
         <button
           type="button"
@@ -377,7 +389,7 @@ function DailyProgressWidget({
           disabled={!hasLatestTask}
           style={{ padding: '10px 16px', fontSize: 13, opacity: hasLatestTask ? 1 : 0.6, cursor: hasLatestTask ? 'pointer' : 'not-allowed' }}
         >
-          Lanjutkan Tugas Terakhir
+          {t('dashboard.continueLastTask')}
         </button>
       </div>
     </section>
@@ -393,6 +405,8 @@ export default function DashboardView() {
     savedTools,
     refreshSavedTools,
     showToast,
+    t,
+    language,
   } = useApp();
   const [activeFilter, setActiveFilter] = useState('Semua');
   const [tools, setTools] = useState([]);
@@ -423,7 +437,7 @@ export default function DashboardView() {
       const data = await toolService.list(params);
       setTools((data.tools ?? []).map(normalizeTool));
     } catch (error) {
-      const message = error.response?.data?.message ?? 'Gagal memuat tools. Coba lagi.';
+      const message = error.response?.data?.message ?? t('dashboard.failedLoadTools');
       setToolsError(message);
     } finally {
       setIsLoadingTools(false);
@@ -500,7 +514,7 @@ export default function DashboardView() {
   const jurusan = user ? user.jurusan : 'Teknik Informatika';
 
   const hour = new Date().getHours();
-  const greeting = hour < 11 ? 'Selamat pagi' : hour < 15 ? 'Selamat siang' : hour < 18 ? 'Selamat sore' : 'Selamat malam';
+  const greeting = hour < 11 ? t('dashboard.goodMorning') : hour < 15 ? t('dashboard.goodAfternoon') : hour < 18 ? t('dashboard.goodEvening') : t('dashboard.goodNight');
   const greetIcon = hour < 11 ? 'lamp' : hour < 15 ? 'refresh' : hour < 18 ? 'calendar' : 'sparkles';
 
   const today = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -518,7 +532,7 @@ export default function DashboardView() {
 
   const handleSaveTool = async (tool) => {
     if (savedToolIds.has(tool.id)) {
-      showToast('Tool sudah ada di Library.', 'info');
+      showToast(t('dashboard.alreadySaved') ?? 'Tool sudah ada di Library.', 'info');
       return;
     }
 
@@ -527,12 +541,12 @@ export default function DashboardView() {
 
     try {
       await bookmarkService.create(tool.id);
-      showToast('AI sedang men-tag tool... cek di Library beberapa detik lagi', 'success');
+      showToast(t('dashboard.aiTagging') ?? 'AI sedang men-tag tool... cek di Library beberapa detik lagi', 'success');
       if (refreshSavedTools) {
         await refreshSavedTools();
       }
     } catch (error) {
-      const message = error.response?.data?.message ?? 'Gagal menyimpan tool. Coba lagi.';
+      const message = error.response?.data?.message ?? (t('dashboard.saveFail') ?? 'Gagal menyimpan tool. Coba lagi.');
       showToast(message, 'error');
     } finally {
       setSavingToolIds((prev) => prev.filter((toolId) => toolId !== tool.id));
@@ -583,9 +597,9 @@ export default function DashboardView() {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <AppIcon name="flame" size={18} />
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Tools Pilihan Hari Ini</h2>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{t('dashboard.featuredToolsTitle')}</h2>
             <span style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginLeft: 4 }}>
-              - dipilihkan khusus untuk {jurusan}
+              - {t('dashboard.featuredToolsSubtitle')} {jurusan}
             </span>
           </div>
           <button
@@ -594,7 +608,7 @@ export default function DashboardView() {
             onClick={handleReplayTour}
             style={{ padding: '7px 12px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            <AppIcon name="sparkles" size={12} /> Mulai Tutorial
+            <AppIcon name="sparkles" size={12} /> {t('dashboard.startTutorial')}
           </button>
         </div>
         {toolsError ? (
@@ -608,7 +622,7 @@ export default function DashboardView() {
               onClick={() => fetchTools(activeFilter)}
               style={{ padding: '8px 14px', fontSize: 12 }}
             >
-              Coba Lagi
+              {t('dashboard.retry')}
             </button>
           </div>
         ) : isLoadingTools ? (
@@ -630,17 +644,17 @@ export default function DashboardView() {
         ) : (
           <div className="card" style={{ padding: '26px 22px', textAlign: 'center' }}>
             <p style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              Belum ada rekomendasi tools baru hari ini. Cek kembali besok!
+              {t('dashboard.noFeatured') || 'Belum ada rekomendasi tools baru hari ini. Cek kembali besok!'}
             </p>
             <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--color-text-secondary)' }}>
-              Sementara itu, jelajahi tools yang sudah kamu simpan di Library.
+              {t('dashboard.noFeaturedSub') || 'Sementara itu, jelajahi tools yang sudah kamu simpan di Library.'}
             </p>
             <button
               type="button"
               onClick={() => setActiveView('library')}
               style={{ border: 'none', background: 'transparent', color: 'var(--color-primary)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
             >
-              Buka Library →
+              {t('dashboard.openLibrary') || 'Buka Library →'}
             </button>
           </div>
         )}
@@ -651,7 +665,7 @@ export default function DashboardView() {
               onClick={() => setShowAllFeatured(true)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '9px 14px' }}
             >
-              Lihat Semua <AppIcon name="arrow-right" size={14} />
+              {t('dashboard.viewAll') || 'Lihat Semua'} <AppIcon name="arrow-right" size={14} />
             </button>
           </div>
         )}
@@ -671,7 +685,7 @@ export default function DashboardView() {
               boxShadow: activeFilter === f ? '0 2px 8px rgba(108,99,255,0.3)' : '0 1px 4px rgba(0,0,0,0.07)',
             }}
           >
-            {f}
+            {getCategoryLabel(f, t)}
           </button>
         ))}
       </div>
@@ -680,12 +694,12 @@ export default function DashboardView() {
       <section style={{ marginBottom: 36 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <AppIcon name="news" size={18} />
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Semua Tools Hari Ini</h2>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{t('dashboard.allToolsToday')}</h2>
           <span style={{
             fontSize: 12, fontWeight: 600, background: 'var(--color-primary-light)',
             color: 'var(--color-primary)', padding: '2px 8px', borderRadius: 999,
           }}>
-            {isLoadingTools ? 'Memuat...' : `${filteredTools.length} tools`}
+            {isLoadingTools ? t('dashboard.loading') || 'Memuat...' : `${filteredTools.length} ${t('dashboard.toolsCount')}`}
           </span>
         </div>
         {toolsError ? (
@@ -699,7 +713,7 @@ export default function DashboardView() {
               onClick={() => fetchTools(activeFilter)}
               style={{ padding: '8px 14px', fontSize: 12 }}
             >
-              Coba Lagi
+              {t('dashboard.retry')}
             </button>
           </div>
         ) : isLoadingTools ? (
@@ -721,7 +735,7 @@ export default function DashboardView() {
         ) : (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-secondary)' }}>
             <span style={{ display: 'inline-flex' }}><AppIcon name="search" size={36} /></span>
-            <p>Belum ada tools untuk kategori ini.</p>
+            <p>{t('dashboard.noCategory') || 'Belum ada tools untuk kategori ini.'}</p>
           </div>
         )}
       </section>
@@ -735,9 +749,9 @@ export default function DashboardView() {
       }}>
         <span style={{ display: 'flex', flexShrink: 0 }}><AppIcon name="lamp" size={28} /></span>
         <div style={{ flex: 1 }}>
-          <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>Tips Produktivitas Hari Ini</p>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{t('dashboard.tipTitle') || 'Tips Produktivitas Hari Ini'}</p>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-            Coba ceritakan tugasmu ke Leva: <em>"Bantu aku buat literature review topik X untuk jurusan {jurusan}"</em> dan Leva akan otomatis memecahnya jadi langkah-langkah kecil plus merekomendasikan tools terbaik!
+            {t('dashboard.tipDesc') || 'Coba ceritakan tugasmu ke Leva:'} <em>{t('dashboard.tipExample') ? t('dashboard.tipExample').replace('{jurusan}', jurusan) : `"Bantu aku buat literature review topik X untuk jurusan ${jurusan}"`}</em> {t('dashboard.tipSuffix') || 'dan Leva akan otomatis memecahnya jadi langkah-langkah kecil plus merekomendasikan tools terbaik!'}
           </p>
         </div>
         <button
@@ -745,7 +759,7 @@ export default function DashboardView() {
           onClick={() => setActiveView('chat')}
           style={{ flexShrink: 0, whiteSpace: 'nowrap', padding: '10px 18px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          Coba Sekarang <AppIcon name="arrow-right" size={14} color="#fff" />
+          {t('dashboard.tryNow') || 'Coba Sekarang'} <AppIcon name="arrow-right" size={14} color="#fff" />
         </button>
       </div>
     </div>

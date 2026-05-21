@@ -102,3 +102,14 @@ Beberapa bug yang ditemukan selama proses Smoke Test telah diperbaiki:
 * [ ] Pilih Light Mode, tampilan kembali terang
 * [ ] Language preference tetap berfungsi setelah theme berubah
 
+
+* [ ] Set language ke English
+* [ ] Dashboard greeting berubah ke English
+* [ ] Dashboard stat cards berubah ke English
+* [ ] Dashboard progress text berubah ke English
+* [ ] Featured tools title/subtitle berubah ke English
+* [ ] Tool buttons berubah ke Save/Saving/Saved/Open
+* [ ] Error state berubah ke English
+* [ ] Retry button berubah ke Try Again
+* [ ] Set language kembali ke Indonesia
+* [ ] Semua teks Dashboard kembali ke Bahasa Indonesia
