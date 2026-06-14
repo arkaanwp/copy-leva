@@ -6,13 +6,14 @@ import { PRIORITY_LABELS } from '../utils/fieldMapper';
 import Modal from '../components/Modal';
 import AppIcon from '../components/AppIcon';
 
-const PRIORITY_KEYS = [
-  { value: 'all', key: 'library.priorityAll' },
-  { value: 'must_try', key: 'library.priorityMustTry' },
-  { value: 'very_good', key: 'library.priorityVeryGood' },
-  { value: 'niche', key: 'library.priorityNiche' },
-  { value: 'optional', key: 'library.priorityOptional' },
+const PRICING_KEYS = [
+  { value: 'all', key: 'Semua' },
+  { value: 'freemium', key: 'Freemium' },
+  { value: 'free', key: 'Gratis' },
+  { value: 'paid', key: 'Berbayar' },
+  { value: 'opensource', key: 'Open Source' },
 ];
+
 
 const SORT_KEYS = [
   { value: 'latest', key: 'library.sortLatest' },
@@ -244,7 +245,7 @@ export default function LibraryView() {
     refreshSavedTools,
     t,
   } = useApp();
-  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [pricingFilter, setPricingFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [searchVal, setSearchVal] = useState('');
   const [debouncedSearchVal, setDebouncedSearchVal] = useState('');
@@ -321,8 +322,8 @@ export default function LibraryView() {
 
     try {
       const params = { sort: sortBy };
-      if (priorityFilter !== 'all') {
-        params.priority = priorityFilter;
+      if (pricingFilter !== 'all') {
+        params.pricing_type = pricingFilter;
       }
       if (categoryFilter !== 'all') {
         params.category = categoryFilter;
@@ -347,7 +348,7 @@ export default function LibraryView() {
         setIsLoading(false);
       }
     }
-  }, [priorityFilter, categoryFilter, debouncedSearchVal, sortBy]);
+  }, [pricingFilter, categoryFilter, debouncedSearchVal, sortBy]);
 
   const fetchTags = useCallback(async () => {
     try {
@@ -540,7 +541,7 @@ export default function LibraryView() {
   };
 
   const handleResetFilters = () => {
-    setPriorityFilter('all');
+    setPricingFilter('all');
     setCategoryFilter('Semua');
     setSearchVal('');
     setDebouncedSearchVal('');
@@ -585,8 +586,8 @@ export default function LibraryView() {
       <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
         {[
           { label: t('library.totalTools'), val: filtered.length, icon: 'folder' },
-          { label: t('library.mustTry'), val: filtered.filter(t2 => t2.priorityKey === 'must_try').length, icon: 'flame' },
-          { label: t('library.veryGood'), val: filtered.filter(t2 => t2.priorityKey === 'very_good').length, icon: 'check' },
+          { label: 'Gratis', val: filtered.filter(t2 => t2.pricingType === 'free').length, icon: 'check' },
+          { label: 'Freemium', val: filtered.filter(t2 => t2.pricingType === 'freemium').length, icon: 'flame' },
         ].map(stat => (
           <div key={stat.label} className="card" style={{ flex: 1, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ display: 'flex' }}><AppIcon name={stat.icon} size={22} /></span>
@@ -613,33 +614,33 @@ export default function LibraryView() {
           />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.07em', margin: 0 }}>{t('library.priority')}</p>
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.07em', margin: 0 }}>HARGA</p>
             <span
               className="tooltip-host tooltip-help-icon"
-              data-tooltip={t('library.priorityTooltip')}
-              aria-label="Info prioritas"
+              data-tooltip="Filter berdasarkan model harga tool AI"
+              aria-label="Info harga"
               tabIndex={0}
             >
               ?
             </span>
           </div>
-          {PRIORITY_KEYS.map(option => (
+          {PRICING_KEYS.map(option => (
             <button
               key={option.value}
               type="button"
-              onClick={() => setPriorityFilter(option.value)}
+              onClick={() => setPricingFilter(option.value)}
               style={{
                 padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
-                background: priorityFilter === option.value ? 'var(--color-primary-light)' : 'transparent',
-                color: priorityFilter === option.value ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                fontWeight: priorityFilter === option.value ? 600 : 400,
+                background: pricingFilter === option.value ? 'var(--color-primary-light)' : 'transparent',
+                color: pricingFilter === option.value ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                fontWeight: pricingFilter === option.value ? 600 : 400,
                 marginBottom: 2, transition: 'all 0.15s',
                 border: 'none',
                 width: '100%',
                 textAlign: 'left',
               }}
             >
-              {option.key ? t(option.key) : option.label}
+              {option.key}
             </button>
           ))}
 

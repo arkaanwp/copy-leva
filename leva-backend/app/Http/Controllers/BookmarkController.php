@@ -18,20 +18,23 @@ class BookmarkController extends Controller
             'note' => ['nullable', 'string'],
         ])->validate();
 
-        $existing = SavedLibrary::query()
+        $bookmark = SavedLibrary::query()
             ->where('user_id', $request->user()->id)
             ->where('tool_id', $validated['tool_id'])
             ->first();
 
-        if ($existing) {
+        if ($bookmark) {
+            $bookmark->load('tool');
             return response()->json([
-                'message' => 'Tool already bookmarked',
+                'message' => 'Tool already saved.',
                 'data' => [
-                    'bookmark_id' => $existing->id,
-                    'tool_id' => $existing->tool_id,
-                    'tagging_status' => $existing->tagging_status,
+                    'bookmark_id' => $bookmark->id,
+                    'tool_id' => $bookmark->tool_id,
+                    'tool_name' => $bookmark->tool?->name,
+                    'tagging_status' => $bookmark->tagging_status,
+                    'note' => $bookmark->note,
                 ],
-            ], 409);
+            ], 200);
         }
 
         $bookmark = SavedLibrary::query()->create([
@@ -62,10 +65,12 @@ class BookmarkController extends Controller
     {
         $validated = Validator::make($request->query(), [
             'priority' => ['nullable', 'in:must_try,very_good,niche,optional'],
+            'pricing_type' => ['nullable', 'in:freemium,free,paid,opensource'],
             'category' => ['nullable', 'in:Research,Writing,Coding,Data,Academic,Productivity'],
             'q' => ['nullable', 'string'],
             'sort' => ['nullable', 'in:latest,oldest,rating,az,za'],
             'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:500'],
         ])->validate();
 
         $query = SavedLibrary::query()
@@ -74,6 +79,10 @@ class BookmarkController extends Controller
             ->when(
                 isset($validated['priority']),
                 fn ($builder) => $builder->where('utility_priority', $validated['priority'])
+            )
+            ->when(
+                isset($validated['pricing_type']),
+                fn ($builder) => $builder->whereHas('tool', fn ($toolQuery) => $toolQuery->where('pricing_type', $validated['pricing_type']))
             )
             ->when(
                 isset($validated['category']),
@@ -104,7 +113,8 @@ class BookmarkController extends Controller
             default => $query->latest(),
         };
 
-        $paginator = $query->paginate(10);
+        $perPage = (int) $request->query('per_page', 100);
+        $paginator = $query->paginate($perPage);
 
         return response()->json([
             'message' => 'Bookmarks retrieved successfully',
