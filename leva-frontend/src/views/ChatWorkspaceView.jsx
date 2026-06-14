@@ -426,7 +426,7 @@ export default function ChatWorkspaceView() {
     setInputVal('');
     setFollowUpVal('');
     setFollowUpMessages([]);
-    setAttachedFile(null);
+    setAttachedFiles([]);
     setFileError('');
     setRagError('');
     setLastSubmission(null);
@@ -763,7 +763,7 @@ export default function ChatWorkspaceView() {
     if (target === '__history_back__') {
       allowExternalLeaveRef.current = true;
       setInputVal('');
-      setAttachedFile(null);
+      setAttachedFiles([]);
       setFileError('');
       setRagError('');
 
