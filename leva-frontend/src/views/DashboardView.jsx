@@ -1160,7 +1160,7 @@ export default function DashboardView() {
             {toolSkeletons}
           </div>
         ) : visibleFeaturedTools.length > 0 ? (
-          <div className="tool-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, opacity: isLoadingTools ? 0.6 : 1, transition: 'opacity 0.2s' }}>
+          <div className="tool-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, opacity: isLoadingTools ? 0.6 : 1, transition: 'opacity 0.2s' }}>
             {visibleFeaturedTools.map(tool => (
               <FeaturedToolCard
                 key={tool.id}
@@ -1253,7 +1253,7 @@ export default function DashboardView() {
           </div>
         ) : filteredTools.length > 0 ? (
           <>
-            <div className="tool-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, opacity: isLoadingTools ? 0.6 : 1, transition: 'opacity 0.2s' }}>
+            <div className="tool-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, opacity: isLoadingTools ? 0.6 : 1, transition: 'opacity 0.2s' }}>
               {filteredTools.slice(0, visibleAllToolsCount).map(tool => (
                 <SmallToolCard
                   key={tool.id}
@@ -1272,7 +1272,7 @@ export default function DashboardView() {
                   onClick={() => setVisibleAllToolsCount(prev => prev + 12)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '9px 14px' }}
                 >
-                  {t('dashboard.viewMore') || 'Lihat Selebihnya'} <AppIcon name="arrow-down" size={14} />
+                  {t('dashboard.viewMore', 'Lihat Selebihnya') === 'dashboard.viewMore' ? 'Lihat Selebihnya' : t('dashboard.viewMore')} <AppIcon name="arrow-down" size={14} />
                 </button>
               </div>
             )}
