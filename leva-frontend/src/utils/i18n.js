@@ -24,6 +24,8 @@ const translations = {
     'sidebar.viewTutorial': 'Lihat Tutorial',
     'sidebar.version': 'Leva v1.0.0 · Dibuat untuk Hackathon',
     'sidebar.close': 'Tutup',
+    'sidebar.showMore': 'Lihat Lebih Banyak',
+    'sidebar.showLess': 'Lihat Lebih Sedikit',
 
     // New Dashboard Requirements Start
     'dashboard.goodMorning': 'Selamat pagi',
@@ -307,6 +309,8 @@ const translations = {
     'sidebar.viewTutorial': 'View Tutorial',
     'sidebar.version': 'Leva v1.0.0 · Built for Hackathon',
     'sidebar.close': 'Close',
+    'sidebar.showMore': 'Show More',
+    'sidebar.showLess': 'Show Less',
 
     // New Dashboard Requirements Start
     'dashboard.goodMorning': 'Good morning',

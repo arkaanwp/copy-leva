@@ -33,6 +33,7 @@ export default function Sidebar() {
   const searchInputRef = useRef(null);
   const [hoveredTaskId, setHoveredTaskId] = useState(null);
   const [isDeletingTaskId, setIsDeletingTaskId] = useState(null);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
 
   const handleDeleteTask = async (e, taskId) => {
     e.stopPropagation();
@@ -135,197 +136,249 @@ export default function Sidebar() {
         width: 240, minWidth: 240, height: '100vh',
         background: 'var(--color-sidebar)',
         display: 'flex', flexDirection: 'column',
-        padding: '20px 12px',
-        overflowY: 'auto',
+        padding: '20px 12px 14px 12px',
         position: 'sticky', top: 0,
+        overflow: 'hidden',
       }}>
 
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, paddingLeft: 4 }}>
-          <AppIcon name="sparkles" size={20} color="#fff" />
-          <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px' }}>Leva</span>
-        </div>
-
-        {/* New Chat Button */}
-        <button
-          onClick={handleNewChat}
-          data-tour="sidebar-new-chat"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: 'transparent',
-            border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: 10, color: '#fff',
-            padding: '9px 12px', fontSize: 13, fontWeight: 600,
-            cursor: 'pointer', marginBottom: 12,
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-        >
-          <AppIcon name="plus" size={16} color="#fff" /> {t('sidebar.newChat')}
-        </button>
-
-        {/* Search */}
-        <div style={{ position: 'relative', marginBottom: 16 }}>
-          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.5, display: 'flex' }}>
-            <AppIcon name="search" size={14} color="#fff" />
-          </span>
-          <input
-            ref={searchInputRef}
-            value={searchVal}
-            onChange={e => setSearchVal(e.target.value)}
-            placeholder={t('sidebar.searchHistory')}
-            style={{
-              width: '100%', background: 'rgba(255,255,255,0.07)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 9, padding: '8px 10px 8px 30px',
-              color: '#fff', fontSize: 13,
-              outline: 'none',
-            }}
-          />
-        </div>
-
-        {activeView === 'dashboard' && searchVal.trim().length > 0 && filteredHistory.length === 0 && (
-          <div style={{ marginTop: -6, marginBottom: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 10px' }}>
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--color-sidebar-text)', lineHeight: 1.5 }}>
-              {t('sidebar.noHistory')}
-            </p>
-            <button
-              type="button"
-              onClick={handleNewChat}
-              style={{ marginTop: 8, border: 'none', background: 'transparent', color: '#C4B5FD', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}
-            >
-              {t('sidebar.startNewChat')}
-            </button>
+        {/* Scrollable Container */}
+        <div style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          paddingRight: 4,
+          marginRight: -4,
+        }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, paddingLeft: 4 }}>
+            <AppIcon name="sparkles" size={20} color="#fff" />
+            <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px' }}>Leva</span>
           </div>
-        )}
 
-        {/* Navigation */}
-        <nav style={{ marginBottom: 20 }}>
-          {NAV_ITEMS.map(item => (
+          {/* New Chat Button */}
+          <button
+            onClick={handleNewChat}
+            data-tour="sidebar-new-chat"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 10, color: '#fff',
+              padding: '9px 12px', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', marginBottom: 12,
+              transition: 'all 0.2s ease',
+              flexShrink: 0,
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <AppIcon name="plus" size={16} color="#fff" /> {t('sidebar.newChat')}
+          </button>
+
+          {/* Search */}
+          <div style={{ position: 'relative', marginBottom: 16, flexShrink: 0 }}>
+            <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.5, display: 'flex' }}>
+              <AppIcon name="search" size={14} color="#fff" />
+            </span>
+            <input
+              ref={searchInputRef}
+              value={searchVal}
+              onChange={e => setSearchVal(e.target.value)}
+              placeholder={t('sidebar.searchHistory')}
+              style={{
+                width: '100%', background: 'rgba(255,255,255,0.07)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 9, padding: '8px 10px 8px 30px',
+                color: '#fff', fontSize: 13,
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          {activeView === 'dashboard' && searchVal.trim().length > 0 && filteredHistory.length === 0 && (
+            <div style={{ marginTop: -6, marginBottom: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 10px', flexShrink: 0 }}>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--color-sidebar-text)', lineHeight: 1.5 }}>
+                {t('sidebar.noHistory')}
+              </p>
+              <button
+                type="button"
+                onClick={handleNewChat}
+                style={{ marginTop: 8, border: 'none', background: 'transparent', color: '#C4B5FD', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+              >
+                {t('sidebar.startNewChat')}
+              </button>
+            </div>
+          )}
+
+          {/* Navigation */}
+          <nav style={{ marginBottom: 20, flexShrink: 0 }}>
+            {NAV_ITEMS.map(item => (
+              <button
+                key={item.id}
+                className={`sidebar-item ${activeView === item.id ? 'active' : ''}`}
+                data-tour={item.id === 'chat' ? 'sidebar-chat' : item.id === 'library' ? 'sidebar-library' : undefined}
+                onClick={() => setActiveView(item.id)}
+                type="button"
+                style={{ width: '100%', background: 'transparent', border: 'none', textAlign: 'left' }}
+              >
+                <span style={{ display: 'flex' }}><AppIcon name={item.icon} size={16} /></span>
+                {t(item.label)}
+              </button>
+            ))}
             <button
-              key={item.id}
-              className={`sidebar-item ${activeView === item.id ? 'active' : ''}`}
-              data-tour={item.id === 'chat' ? 'sidebar-chat' : item.id === 'library' ? 'sidebar-library' : undefined}
-              onClick={() => setActiveView(item.id)}
               type="button"
+              className="sidebar-item"
+              onClick={() => setShowSettings(true)}
               style={{ width: '100%', background: 'transparent', border: 'none', textAlign: 'left' }}
             >
-              <span style={{ display: 'flex' }}><AppIcon name={item.icon} size={16} /></span>
-              {t(item.label)}
+              <span style={{ display: 'flex' }}><AppIcon name="settings" size={16} /></span> {t('sidebar.settings')}
             </button>
-          ))}
-          <button
-            type="button"
-            className="sidebar-item"
-            onClick={() => setShowSettings(true)}
-            style={{ width: '100%', background: 'transparent', border: 'none', textAlign: 'left' }}
-          >
-            <span style={{ display: 'flex' }}><AppIcon name="settings" size={16} /></span> {t('sidebar.settings')}
-          </button>
-          <button
-            type="button"
-            className="sidebar-item"
-            onClick={handleOpenTutorial}
-            style={{ width: '100%', background: 'transparent', border: 'none', textAlign: 'left' }}
-          >
-            <span style={{ display: 'flex' }}><AppIcon name="sparkles" size={16} /></span> {t('sidebar.viewTutorial')}
-          </button>
-        </nav>
+            <button
+              type="button"
+              className="sidebar-item"
+              onClick={handleOpenTutorial}
+              style={{ width: '100%', background: 'transparent', border: 'none', textAlign: 'left' }}
+            >
+              <span style={{ display: 'flex' }}><AppIcon name="sparkles" size={16} /></span> {t('sidebar.viewTutorial')}
+            </button>
+          </nav>
 
-        {/* Divider */}
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 14 }} />
+          {/* Divider */}
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 14, flexShrink: 0 }} />
 
-        {/* History */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-sidebar-text-muted)', letterSpacing: '0.08em', marginBottom: 8, paddingLeft: 4 }}>
-            {t('sidebar.taskHistory')}
-          </p>
-          {filteredHistory.map(task => {
-            const taskId = task.task_id ?? task.id;
-            const isActive = taskId && taskId === activeTaskId;
-            const dateLabel = formatHistoryDate(task.created_at ?? task.date);
-            const isHovered = taskId && taskId === hoveredTaskId;
-            const isDeleting = taskId && taskId === isDeletingTaskId;
+          {/* History */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-sidebar-text-muted)', letterSpacing: '0.08em', marginBottom: 8, paddingLeft: 4 }}>
+              {t('sidebar.taskHistory')}
+            </p>
+            {(isHistoryExpanded ? filteredHistory : filteredHistory.slice(0, 4)).map(task => {
+              const taskId = task.task_id ?? task.id;
+              const isActive = taskId && taskId === activeTaskId;
+              const dateLabel = formatHistoryDate(task.created_at ?? task.date);
+              const isHovered = taskId && taskId === hoveredTaskId;
+              const isDeleting = taskId && taskId === isDeletingTaskId;
 
-            return (
-              <div
-                key={taskId ?? task.title}
-                onMouseEnter={() => setHoveredTaskId(taskId)}
-                onMouseLeave={() => setHoveredTaskId(null)}
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  marginBottom: 2,
-                  borderRadius: 9,
-                  background: isActive ? 'rgba(108,99,255,0.25)' : (isHovered ? 'rgba(255,255,255,0.05)' : 'transparent'),
-                  transition: 'background 0.2s ease',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => handleHistoryClick(task)}
-                  disabled={isDeleting}
+              return (
+                <div
+                  key={taskId ?? task.title}
+                  onMouseEnter={() => setHoveredTaskId(taskId)}
+                  onMouseLeave={() => setHoveredTaskId(null)}
                   style={{
+                    position: 'relative',
                     width: '100%',
-                    border: 'none',
-                    textAlign: 'left',
-                    padding: '8px 36px 8px 10px', 
-                    borderRadius: 9, 
-                    cursor: isDeleting ? 'not-allowed' : 'pointer',
-                    background: 'transparent',
-                    opacity: isDeleting ? 0.5 : 1,
-                    transition: 'all 0.2s ease',
-                    display: 'block',
+                    marginBottom: 2,
+                    borderRadius: 9,
+                    background: isActive ? 'rgba(108,99,255,0.25)' : (isHovered ? 'rgba(255,255,255,0.05)' : 'transparent'),
+                    transition: 'background 0.2s ease',
                   }}
                 >
-                  <p style={{
-                    margin: 0, fontSize: 13, fontWeight: isActive ? 600 : 400,
-                    color: isActive ? '#fff' : 'var(--color-sidebar-text)',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>
-                    {task.title}
-                  </p>
-                  <p style={{ margin: 0, fontSize: 11, color: 'var(--color-sidebar-text-muted)', marginTop: 2 }}>
-                    {dateLabel}
-                  </p>
-                </button>
-
-                {taskId && (isHovered || isDeleting) && (
                   <button
                     type="button"
-                    onClick={(e) => handleDeleteTask(e, taskId)}
+                    onClick={() => handleHistoryClick(task)}
                     disabled={isDeleting}
-                    title="Hapus tugas"
                     style={{
-                      position: 'absolute',
-                      right: 8,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'transparent',
+                      width: '100%',
                       border: 'none',
+                      textAlign: 'left',
+                      padding: '8px 36px 8px 10px', 
+                      borderRadius: 9, 
                       cursor: isDeleting ? 'not-allowed' : 'pointer',
-                      padding: 4,
-                      borderRadius: 4,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: isDeleting ? 'var(--color-sidebar-text-muted)' : 'rgba(255, 100, 100, 0.85)',
-                      transition: 'color 0.2s, background 0.2s',
+                      background: 'transparent',
+                      opacity: isDeleting ? 0.5 : 1,
+                      transition: 'all 0.2s ease',
+                      display: 'block',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.color = '#ff4d4d'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255, 100, 100, 0.85)'; e.currentTarget.style.background = 'transparent'; }}
                   >
-                    {isDeleting ? (
-                      <AppIcon name="loader" size={14} className="animate-spin" />
-                    ) : (
-                      <AppIcon name="trash" size={14} />
-                    )}
+                    <p style={{
+                      margin: 0, fontSize: 13, fontWeight: isActive ? 600 : 400,
+                      color: isActive ? '#fff' : 'var(--color-sidebar-text)',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>
+                      {task.title}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 11, color: 'var(--color-sidebar-text-muted)', marginTop: 2 }}>
+                      {dateLabel}
+                    </p>
                   </button>
-                )}
-              </div>
-            );
-          })}
+
+                  {taskId && (isHovered || isDeleting) && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteTask(e, taskId)}
+                      disabled={isDeleting}
+                      title="Hapus tugas"
+                      style={{
+                        position: 'absolute',
+                        right: 8,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: isDeleting ? 'not-allowed' : 'pointer',
+                        padding: 4,
+                        borderRadius: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: isDeleting ? 'var(--color-sidebar-text-muted)' : 'rgba(255, 100, 100, 0.85)',
+                        transition: 'color 0.2s, background 0.2s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#ff4d4d'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255, 100, 100, 0.85)'; e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      {isDeleting ? (
+                        <AppIcon name="loader" size={14} className="animate-spin" />
+                      ) : (
+                        <AppIcon name="trash" size={14} />
+                      )}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            
+            {filteredHistory.length > 4 && (
+              <button
+                type="button"
+                onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+                style={{
+                  width: '100%',
+                  marginTop: 6,
+                  padding: '8px 10px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1.5px dashed rgba(255,255,255,0.15)',
+                  borderRadius: 9,
+                  color: 'var(--color-sidebar-text)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                  e.currentTarget.style.borderColor = 'var(--color-primary)';
+                  e.currentTarget.style.color = '#fff';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+                  e.currentTarget.style.color = 'var(--color-sidebar-text)';
+                }}
+              >
+                <span style={{ display: 'inline-flex', transform: isHistoryExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}>
+                  <AppIcon name="chevron-down" size={14} />
+                </span>
+                {isHistoryExpanded ? t('sidebar.showLess') : t('sidebar.showMore')}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Divider */}

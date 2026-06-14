@@ -539,8 +539,6 @@ export default function LibraryView() {
     boxSizing: 'border-box', marginBottom: 12,
   };
 
-  const isLibraryEmpty = !isLoading && filtered.length === 0 && !errorMessage;
-
   const handleResetFilters = () => {
     setPriorityFilter('all');
     setCategoryFilter('Semua');
@@ -583,205 +581,201 @@ export default function LibraryView() {
         </button>
       </div>
 
-      {isLibraryEmpty ? (
-        <div style={{ minHeight: 420, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px 12px' }}>
-          <div style={{ width: 84, height: 84, borderRadius: 20, background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-            <AppIcon name="folder" size={44} color="#94A3B8" />
+      {/* Stats row */}
+      <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+        {[
+          { label: t('library.totalTools'), val: filtered.length, icon: 'folder' },
+          { label: t('library.mustTry'), val: filtered.filter(t2 => t2.priorityKey === 'must_try').length, icon: 'flame' },
+          { label: t('library.veryGood'), val: filtered.filter(t2 => t2.priorityKey === 'very_good').length, icon: 'check' },
+        ].map(stat => (
+          <div key={stat.label} className="card" style={{ flex: 1, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ display: 'flex' }}><AppIcon name={stat.icon} size={22} /></span>
+            <div>
+              <p style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--color-primary)' }}>{stat.val}</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-secondary)' }}>{stat.label}</p>
+            </div>
           </div>
-          <h3 style={{ margin: '0 0 10px', fontSize: 24, fontWeight: 800, color: 'var(--color-text-primary)' }}>
-            {t('library.emptyTitle')}
-          </h3>
-          <p style={{ margin: '0 0 22px', maxWidth: 520, fontSize: 14, lineHeight: 1.7, color: 'var(--color-text-secondary)' }}>
-            {t('library.emptyDesc')}
-          </p>
-          <button className="btn-primary" onClick={() => setActiveView('dashboard')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px' }}>
-            {t('library.goToDashboard')} <AppIcon name="arrow-right" size={14} color="#fff" />
-          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 24 }}>
+
+        {/* Filter Sidebar */}
+        <div style={{ width: 200, flexShrink: 0 }}>
+          {/* Search */}
+          <input
+            value={searchVal}
+            onChange={e => setSearchVal(e.target.value)}
+            placeholder={t('library.searchPlaceholder')}
+            style={{ ...inputStyle, marginBottom: 20 }}
+            onFocus={e => e.target.style.borderColor = 'var(--color-primary)'}
+            onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
+          />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.07em', margin: 0 }}>{t('library.priority')}</p>
+            <span
+              className="tooltip-host tooltip-help-icon"
+              data-tooltip={t('library.priorityTooltip')}
+              aria-label="Info prioritas"
+              tabIndex={0}
+            >
+              ?
+            </span>
+          </div>
+          {PRIORITY_KEYS.map(option => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setPriorityFilter(option.value)}
+              style={{
+                padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                background: priorityFilter === option.value ? 'var(--color-primary-light)' : 'transparent',
+                color: priorityFilter === option.value ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                fontWeight: priorityFilter === option.value ? 600 : 400,
+                marginBottom: 2, transition: 'all 0.15s',
+                border: 'none',
+                width: '100%',
+                textAlign: 'left',
+              }}
+            >
+              {option.key ? t(option.key) : option.label}
+            </button>
+          ))}
+
+          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.07em', margin: '20px 0 8px' }}>{t('library.category')}</p>
+          {CATEGORY_FILTERS.map(f => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setCategoryFilter(f)}
+              style={{
+                padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                background: categoryFilter === f ? 'var(--color-primary-light)' : 'transparent',
+                color: categoryFilter === f ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                fontWeight: categoryFilter === f ? 600 : 400,
+                marginBottom: 2, transition: 'all 0.15s',
+                border: 'none',
+                width: '100%',
+                textAlign: 'left',
+              }}
+            >
+              {f === 'all' ? t('library.categoryAll') : f}
+            </button>
+          ))}
+
+          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.07em', margin: '20px 0 8px' }}>{t('library.tags')}</p>
+          {displayedTags.length === 0 ? (
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: 0 }}>
+              {t('library.noTags')}
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {displayedTags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => handleTagClick(tag)}
+                  style={{
+                    border: '1px solid var(--color-border)',
+                    background: selectedTag === tag ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                    color: selectedTag === tag ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                    borderRadius: 999,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                  }}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      ) : (
-        <>
-          {/* Stats row */}
-          <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-            {[
-              { label: t('library.totalTools'), val: filtered.length, icon: 'folder' },
-              { label: t('library.mustTry'), val: filtered.filter(t2 => t2.priorityKey === 'must_try').length, icon: 'flame' },
-              { label: t('library.veryGood'), val: filtered.filter(t2 => t2.priorityKey === 'very_good').length, icon: 'check' },
-            ].map(stat => (
-              <div key={stat.label} className="card" style={{ flex: 1, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ display: 'flex' }}><AppIcon name={stat.icon} size={22} /></span>
-                <div>
-                  <p style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--color-primary)' }}>{stat.val}</p>
-                  <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-secondary)' }}>{stat.label}</p>
-                </div>
-              </div>
-            ))}
+
+        {/* Tool Cards Grid */}
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: 0 }}>
+              {t('library.showingXofY').replace('{x}', filtered.length).replace('{y}', totalCount)}
+            </p>
+
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+              <span style={{ fontWeight: 600 }}>{t('library.sort')}</span>
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value)}
+                style={{
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 9,
+                  fontSize: 13,
+                  padding: '7px 10px',
+                  color: 'var(--color-text-primary)',
+                  background: 'var(--color-surface)',
+                  outline: 'none',
+                }}
+              >
+                {SORT_KEYS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.key ? t(option.key) : option.label}</option>
+                ))}
+              </select>
+            </label>
           </div>
 
-          <div style={{ display: 'flex', gap: 24 }}>
-
-            {/* Filter Sidebar */}
-            <div style={{ width: 200, flexShrink: 0 }}>
-              {/* Search */}
-              <input
-                value={searchVal}
-                onChange={e => setSearchVal(e.target.value)}
-                placeholder={t('library.searchPlaceholder')}
-                style={{ ...inputStyle, marginBottom: 20 }}
-                onFocus={e => e.target.style.borderColor = 'var(--color-primary)'}
-                onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
-              />
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.07em', margin: 0 }}>{t('library.priority')}</p>
-                <span
-                  className="tooltip-host tooltip-help-icon"
-                  data-tooltip={t('library.priorityTooltip')}
-                  aria-label="Info prioritas"
-                  tabIndex={0}
-                >
-                  ?
+          {errorMessage ? (
+            <div style={{ textAlign: 'center', padding: '56px 20px' }}>
+              <p style={{ margin: '0 0 14px', color: 'var(--color-text-secondary)', fontSize: 14, lineHeight: 1.7 }}>
+                {errorMessage}
+              </p>
+              <button className="btn-secondary" onClick={fetchBookmarks}>
+                {t('library.retry')}
+              </button>
+            </div>
+          ) : isLoading ? (
+            <div style={{ textAlign: 'center', padding: '56px 20px' }}>
+              <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 14 }}>
+                {t('library.loading')}
+              </p>
+            </div>
+          ) : bookmarks.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', minHeight: 280, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 72, height: 72, borderRadius: 16, background: 'var(--color-bg)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <AppIcon name="folder" size={36} color="#94A3B8" />
+              </div>
+              <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 800, color: 'var(--color-text-primary)' }}>
+                {t('library.emptyTitle')}
+              </h3>
+              <p style={{ margin: '0 0 18px', maxWidth: 400, fontSize: 13, lineHeight: 1.6, color: 'var(--color-text-secondary)', marginLeft: 'auto', marginRight: 'auto' }}>
+                {t('library.emptyDesc')}
+              </p>
+              <button className="btn-primary" onClick={() => setActiveView('dashboard')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: 13 }}>
+                {t('library.goToDashboard')} <AppIcon name="arrow-right" size={12} color="#fff" />
+              </button>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '56px 20px' }}>
+              <span style={{ display: 'inline-flex', position: 'relative' }}>
+                <AppIcon name="search" size={48} color="#94A3B8" />
+                <span style={{ position: 'absolute', right: -2, bottom: -1, width: 18, height: 18, borderRadius: '50%', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <AppIcon name="x" size={12} color="var(--color-text-secondary)" />
                 </span>
-              </div>
-              {PRIORITY_KEYS.map(option => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setPriorityFilter(option.value)}
-                  style={{
-                    padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
-                    background: priorityFilter === option.value ? 'var(--color-primary-light)' : 'transparent',
-                    color: priorityFilter === option.value ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                    fontWeight: priorityFilter === option.value ? 600 : 400,
-                    marginBottom: 2, transition: 'all 0.15s',
-                    border: 'none',
-                    width: '100%',
-                    textAlign: 'left',
-                  }}
-                >
-                  {option.key ? t(option.key) : option.label}
-                </button>
-              ))}
-
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.07em', margin: '20px 0 8px' }}>{t('library.category')}</p>
-              {CATEGORY_FILTERS.map(f => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setCategoryFilter(f)}
-                  style={{
-                    padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
-                    background: categoryFilter === f ? 'var(--color-primary-light)' : 'transparent',
-                    color: categoryFilter === f ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                    fontWeight: categoryFilter === f ? 600 : 400,
-                    marginBottom: 2, transition: 'all 0.15s',
-                    border: 'none',
-                    width: '100%',
-                    textAlign: 'left',
-                  }}
-                >
-                  {f === 'all' ? t('library.categoryAll') : f}
-                </button>
-              ))}
-
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.07em', margin: '20px 0 8px' }}>{t('library.tags')}</p>
-              {displayedTags.length === 0 ? (
-                <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: 0 }}>
-                  {t('library.noTags')}
-                </p>
-              ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {displayedTags.map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => handleTagClick(tag)}
-                      style={{
-                        border: '1px solid var(--color-border)',
-                        background: selectedTag === tag ? 'var(--color-primary-light)' : 'var(--color-surface)',
-                        color: selectedTag === tag ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                        borderRadius: 999,
-                        padding: '4px 10px',
-                        fontSize: 11,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      #{tag}
-                    </button>
-                  ))}
-                </div>
-              )}
+              </span>
+              <p style={{ margin: '14px 0 14px', color: 'var(--color-text-secondary)', fontSize: 14, lineHeight: 1.7 }}>
+                {t('library.noMatch')}
+              </p>
+              <button className="btn-secondary" onClick={handleResetFilters}>
+                {t('library.resetFilter')}
+              </button>
             </div>
-
-            {/* Tool Cards Grid */}
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-                <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: 0 }}>
-                  {t('library.showingXofY').replace('{x}', filtered.length).replace('{y}', totalCount)}
-                </p>
-
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                  <span style={{ fontWeight: 600 }}>{t('library.sort')}</span>
-                  <select
-                    value={sortBy}
-                    onChange={(event) => setSortBy(event.target.value)}
-                    style={{
-                      border: '1px solid var(--color-border)',
-                      borderRadius: 9,
-                      fontSize: 13,
-                      padding: '7px 10px',
-                      color: 'var(--color-text-primary)',
-                      background: 'var(--color-surface)',
-                      outline: 'none',
-                    }}
-                  >
-                    {SORT_KEYS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.key ? t(option.key) : option.label}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              {errorMessage ? (
-                <div style={{ textAlign: 'center', padding: '56px 20px' }}>
-                  <p style={{ margin: '0 0 14px', color: 'var(--color-text-secondary)', fontSize: 14, lineHeight: 1.7 }}>
-                    {errorMessage}
-                  </p>
-                  <button className="btn-secondary" onClick={fetchBookmarks}>
-                    {t('library.retry')}
-                  </button>
-                </div>
-              ) : isLoading ? (
-                <div style={{ textAlign: 'center', padding: '56px 20px' }}>
-                  <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 14 }}>
-                    {t('library.loading')}
-                  </p>
-                </div>
-              ) : filtered.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '56px 20px' }}>
-                  <span style={{ display: 'inline-flex', position: 'relative' }}>
-                    <AppIcon name="search" size={48} color="#94A3B8" />
-                    <span style={{ position: 'absolute', right: -2, bottom: -1, width: 18, height: 18, borderRadius: '50%', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <AppIcon name="x" size={12} color="var(--color-text-secondary)" />
-                    </span>
-                  </span>
-                  <p style={{ margin: '14px 0 14px', color: 'var(--color-text-secondary)', fontSize: 14, lineHeight: 1.7 }}>
-                    {t('library.noMatch')}
-                  </p>
-                  <button className="btn-secondary" onClick={handleResetFilters}>
-                    {t('library.resetFilter')}
-                  </button>
-                </div>
-              ) : (
-                <div className="library-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                  {filtered.map(tool => (
-                    <SavedToolCard key={tool.id} tool={tool} onDelete={handleDeleteRequest} onOpenDetail={handleOpenDetail} />
-                  ))}
-                </div>
-              )}
+          ) : (
+            <div className="library-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+              {filtered.map(tool => (
+                <SavedToolCard key={tool.id} tool={tool} onDelete={handleDeleteRequest} onOpenDetail={handleOpenDetail} />
+              ))}
             </div>
-          </div>
-        </>
-      )}
+          )}
+        </div>
+      </div>
 
       {/* Add Tool Modal */}
       {showAddModal && (
