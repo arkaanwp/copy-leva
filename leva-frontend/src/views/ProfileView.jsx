@@ -16,6 +16,7 @@ export default function ProfileView() {
     savedTools,
     setSavedTools,
     setActiveTask,
+    historyTasks,
     setHistoryTasks,
     soundEnabled,
     setSoundEnabled,
@@ -454,27 +455,27 @@ export default function ProfileView() {
           {[
             {
               icon: 'clipboard',
-              val: 12,
+              val: historyTasks ? historyTasks.length : 0,
               label: 'Tasks Selesai',
               aria: 'Lihat riwayat task di Chat dan Task',
-              trendText: '↑ 3 dari minggu lalu',
-              trendColor: '#059669',
+              trendText: historyTasks && historyTasks.length > 0 ? `+${historyTasks.length} minggu ini` : 'Belum ada task',
+              trendColor: historyTasks && historyTasks.length > 0 ? '#059669' : 'var(--color-text-secondary)',
             },
             {
               icon: 'book',
               val: savedTools.length,
               label: 'Tools Tersimpan',
               aria: 'Lihat daftar tools tersimpan di Library',
-              trendText: '↓ 1 dari minggu lalu',
-              trendColor: '#DC2626',
+              trendText: savedTools && savedTools.length > 0 ? `${savedTools.length} tools siap pakai` : 'Library masih kosong',
+              trendColor: savedTools && savedTools.length > 0 ? '#2563EB' : 'var(--color-text-secondary)',
             },
             {
               icon: 'calendar-clock',
-              val: 8,
+              val: user?.streak || 1,
               label: 'Hari Berturut-turut',
               aria: 'Lihat progres streak harian',
-              trendText: '- sama dengan minggu lalu',
-              trendColor: 'var(--color-text-secondary)',
+              trendText: 'Streak hari ini aktif! 🔥',
+              trendColor: '#D97706',
             },
           ].map(stat => {
             const isHovered = hoveredStat === stat.label;
