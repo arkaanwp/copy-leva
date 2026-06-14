@@ -722,7 +722,7 @@ export default function DashboardView() {
     setToolsError('');
 
     try {
-      const params = { per_page: 12 };
+      const params = { per_page: 500 };
       if (category && category !== 'Semua') {
         params.category = category;
       }

@@ -39,7 +39,7 @@ class ToolController extends Controller
             'category' => ['nullable', 'string', 'in:'.implode(',', self::CATEGORIES)],
             'pricing' => ['nullable', 'string', 'in:'.implode(',', self::PRICING_TYPES)],
             'page' => ['nullable', 'integer', 'min:1'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:500'],
         ])->validate();
 
         $perPage = $validated['per_page'] ?? 12;
