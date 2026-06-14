@@ -98,15 +98,20 @@ const resolveToolUrl = (url) => {
 };
 
 // Badge component for priority
-function PriorityBadge({ priorityKey, label }) {
-  const meta = priorityKey ? PRIORITY_LABELS[priorityKey] : null;
-  const style = meta
-    ? { background: meta.bg, color: meta.color }
-    : { background: 'var(--color-bg)', color: 'var(--color-text-secondary)' };
-  const text = label || meta?.label || 'Menunggu Label';
+function CategoryBadge({ category }) {
+  const normalized = (category || '').toLowerCase();
+  const map = {
+    research: { bg: '#EDE9FE', color: '#7C3AED' },
+    writing: { bg: '#FEF9C3', color: '#A16207' },
+    coding: { bg: '#DBEAFE', color: '#1D4ED8' },
+    data: { bg: '#DCFCE7', color: '#15803D' },
+    academic: { bg: '#FFE4E6', color: '#BE123C' },
+    productivity: { bg: '#F0FDFA', color: '#0F766E' },
+  };
+  const style = map[normalized] || { bg: '#F1F5F9', color: '#475569' };
   return (
-    <span style={{ ...style, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap' }}>
-      {text}
+    <span style={{ ...style, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
+      {category || 'Lainnya'}
     </span>
   );
 }
@@ -162,7 +167,7 @@ function SavedToolCard({ tool, onDelete, onOpenDetail }) {
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0 }}>
           <PricingBadge pricingType={tool.pricingType} />
-          <PriorityBadge priorityKey={tool.priorityKey} label={tool.priority} />
+          <CategoryBadge category={tool.category} />
           {tool.taggingStatus === 'pending' && (
             <span style={{
               background: '#FEF3C7',
@@ -182,9 +187,6 @@ function SavedToolCard({ tool, onDelete, onOpenDetail }) {
 
       {/* Category + date */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
-        <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
-          {tool.category}
-        </span>
         <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
           Disimpan {tool.savedAt}
         </span>
