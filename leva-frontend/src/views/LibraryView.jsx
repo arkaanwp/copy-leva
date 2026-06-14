@@ -101,14 +101,14 @@ const resolveToolUrl = (url) => {
 function CategoryBadge({ category }) {
   const normalized = (category || '').toLowerCase();
   const map = {
-    research: { bg: '#EDE9FE', color: '#7C3AED' },
-    writing: { bg: '#FEF9C3', color: '#A16207' },
-    coding: { bg: '#DBEAFE', color: '#1D4ED8' },
-    data: { bg: '#DCFCE7', color: '#15803D' },
-    academic: { bg: '#FFE4E6', color: '#BE123C' },
-    productivity: { bg: '#F0FDFA', color: '#0F766E' },
+    research: { background: '#EDE9FE', color: '#7C3AED' },
+    writing: { background: '#FEF9C3', color: '#A16207' },
+    coding: { background: '#DBEAFE', color: '#1D4ED8' },
+    data: { background: '#DCFCE7', color: '#15803D' },
+    academic: { background: '#FFE4E6', color: '#BE123C' },
+    productivity: { background: '#F0FDFA', color: '#0F766E' },
   };
-  const style = map[normalized] || { bg: '#F1F5F9', color: '#475569' };
+  const style = map[normalized] || { background: '#F1F5F9', color: '#475569' };
   return (
     <span style={{ ...style, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
       {category || 'Lainnya'}
