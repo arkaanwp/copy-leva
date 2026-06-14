@@ -52,12 +52,17 @@ class OpenAIService
 
         $rawText = data_get($response, 'choices.0.message.content');
         
-        // Handle markdown json block if model disobeys
-        $rawText = preg_replace('/```json\n?(.*?)\n?```/s', '$1', $rawText);
+        // Extract only the JSON object, ignoring any <think> tags or conversational padding
+        $start = strpos($rawText, '{');
+        $end = strrpos($rawText, '}');
+        if ($start !== false && $end !== false) {
+            $rawText = substr($rawText, $start, $end - $start + 1);
+        }
+        
         $decoded = json_decode($rawText, true);
 
         if (!is_array($decoded) || !isset($decoded['title'], $decoded['sub_tasks']) || !is_array($decoded['sub_tasks'])) {
-            throw new RuntimeException('OpenRouter returned invalid decomposition JSON.');
+            throw new RuntimeException('OpenRouter returned invalid decomposition JSON. Raw: ' . substr($rawText, 0, 100));
         }
 
         return $decoded;
@@ -87,7 +92,14 @@ class OpenAIService
         ]);
 
         $rawText = data_get($response, 'choices.0.message.content');
-        $rawText = preg_replace('/```json\n?(.*?)\n?```/s', '$1', $rawText);
+        
+        // Extract only the JSON object
+        $start = strpos($rawText, '{');
+        $end = strrpos($rawText, '}');
+        if ($start !== false && $end !== false) {
+            $rawText = substr($rawText, $start, $end - $start + 1);
+        }
+        
         $decoded = json_decode($rawText, true);
 
         if (!is_array($decoded) || !isset($decoded['utility_priority'], $decoded['semantic_keywords']) || count($decoded['semantic_keywords']) !== 5) {
