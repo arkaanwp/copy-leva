@@ -483,6 +483,9 @@ function SmallToolCard({ tool, onSave, isSaved, isSaving, onOpenDetail }) {
         padding: 16, transition: 'transform 0.2s ease, box-shadow 0.2s ease',
         position: 'relative',
         overflow: 'visible',
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column'
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -494,8 +497,8 @@ function SmallToolCard({ tool, onSave, isSaved, isSaving, onOpenDetail }) {
         <PricingBadge pricingType={tool.pricingType} />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: 1, minWidth: 0 }}>
           <span style={{ display: 'flex' }}><AppIcon name={tool.iconKey} size={20} /></span>
           <span 
             onClick={() => onOpenDetail(tool.id)}
@@ -503,7 +506,11 @@ function SmallToolCard({ tool, onSave, isSaved, isSaving, onOpenDetail }) {
               fontWeight: 700, 
               fontSize: 14, 
               cursor: 'pointer',
-              transition: 'color 0.2s'
+              transition: 'color 0.2s',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              display: 'block'
             }}
             onMouseEnter={e => e.currentTarget.style.color = 'var(--color-primary)'}
             onMouseLeave={e => e.currentTarget.style.color = 'inherit'}
@@ -512,9 +519,10 @@ function SmallToolCard({ tool, onSave, isSaved, isSaving, onOpenDetail }) {
             {tool.name}
           </span>
         </div>
-        <button
-          disabled={isSaved || isSaving}
-          onClick={handleSave}
+        <div style={{ flexShrink: 0 }}>
+          <button
+            disabled={isSaved || isSaving}
+            onClick={handleSave}
           title={t('tool.save') || "Simpan ke Library"}
           style={{
             background: isSaved ? '#E2E8F0' : 'var(--color-primary-light)',
@@ -529,6 +537,7 @@ function SmallToolCard({ tool, onSave, isSaved, isSaving, onOpenDetail }) {
         >
           {isSaved ? t('tool.saved') : isSaving ? t('tool.saving') : t('tool.save')}
         </button>
+        </div>
       </div>
       <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>
         {tool.desc}
@@ -1027,6 +1036,7 @@ export default function DashboardView() {
                   borderRadius: 14,
                   position: 'relative',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                  minWidth: 0
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-4px)';
@@ -1043,8 +1053,8 @@ export default function DashboardView() {
                     <PricingBadge pricingType={toolObj.pricingType} />
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span style={{ display: 'flex' }}><AppIcon name={toolObj.iconKey} size={20} color="var(--color-text-primary)" /></span>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                    <span style={{ display: 'flex', flexShrink: 0 }}><AppIcon name={toolObj.iconKey} size={20} color="var(--color-text-primary)" /></span>
                     <span 
                       onClick={() => handleOpenDetail(toolObj.id)}
                       style={{ 
@@ -1052,7 +1062,11 @@ export default function DashboardView() {
                         fontSize: 15, 
                         color: 'var(--color-text-primary)',
                         cursor: 'pointer',
-                        transition: 'color 0.2s'
+                        transition: 'color 0.2s',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        display: 'block'
                       }}
                       onMouseEnter={e => e.currentTarget.style.color = 'var(--color-primary)'}
                       onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-primary)'}
