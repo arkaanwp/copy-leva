@@ -638,6 +638,7 @@ export default function DashboardView() {
   const [tools, setTools] = useState([]);
   const [isLoadingTools, setIsLoadingTools] = useState(true);
   const [toolsError, setToolsError] = useState('');
+  const [visibleAllToolsCount, setVisibleAllToolsCount] = useState(12);
   const [selectedJurusan, setSelectedJurusan] = useState(user?.jurusan || 'Teknik Informatika');
   const [isSavingJurusan, setIsSavingJurusan] = useState(false);
   const [selectedDetailTool, setSelectedDetailTool] = useState(null);
@@ -854,6 +855,7 @@ export default function DashboardView() {
   const handleFilterChange = (filter) => {
     setActiveFilter(filter);
     setShowAllFeatured(false);
+    setVisibleAllToolsCount(12);
   };
 
   const toolSkeletons = Array.from({ length: 6 }, (_, index) => (
@@ -1250,18 +1252,31 @@ export default function DashboardView() {
             {toolSkeletons}
           </div>
         ) : filteredTools.length > 0 ? (
-          <div className="tool-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, opacity: isLoadingTools ? 0.6 : 1, transition: 'opacity 0.2s' }}>
-            {filteredTools.map(tool => (
-              <SmallToolCard
-                key={tool.id}
-                tool={tool}
-                onSave={handleSaveTool}
-                isSaved={savedToolIds.has(tool.id)}
-                isSaving={savingToolIds.includes(tool.id)}
-                onOpenDetail={handleOpenDetail}
-              />
-            ))}
-          </div>
+          <>
+            <div className="tool-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, opacity: isLoadingTools ? 0.6 : 1, transition: 'opacity 0.2s' }}>
+              {filteredTools.slice(0, visibleAllToolsCount).map(tool => (
+                <SmallToolCard
+                  key={tool.id}
+                  tool={tool}
+                  onSave={handleSaveTool}
+                  isSaved={savedToolIds.has(tool.id)}
+                  isSaving={savingToolIds.includes(tool.id)}
+                  onOpenDetail={handleOpenDetail}
+                />
+              ))}
+            </div>
+            {visibleAllToolsCount < filteredTools.length && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
+                <button
+                  className="btn-ghost"
+                  onClick={() => setVisibleAllToolsCount(prev => prev + 12)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '9px 14px' }}
+                >
+                  {t('dashboard.viewMore') || 'Lihat Selebihnya'} <AppIcon name="arrow-down" size={14} />
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-secondary)' }}>
             <span style={{ display: 'inline-flex' }}><AppIcon name="search" size={36} /></span>
