@@ -133,8 +133,8 @@ function SavedToolCard({ tool, onDelete, onOpenDetail }) {
       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)'; }}
     >
       {/* Top row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-        <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 16 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h3 
             onClick={() => onOpenDetail(tool.id)}
             style={{ 
@@ -142,19 +142,25 @@ function SavedToolCard({ tool, onDelete, onOpenDetail }) {
               fontSize: 15, 
               fontWeight: 700, 
               cursor: 'pointer',
-              transition: 'color 0.2s'
+              transition: 'color 0.2s',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
             }}
             onMouseEnter={e => e.currentTarget.style.color = 'var(--color-primary)'}
             onMouseLeave={e => e.currentTarget.style.color = 'inherit'}
-            title="Klik untuk melihat detail"
+            title={tool.name}
           >
             {tool.name}
           </h3>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <AppIcon name="link" size={12} /> {tool.url}
+            <span style={{ display: 'flex', flexShrink: 0 }}><AppIcon name="link" size={12} /></span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+              {tool.url}
+            </span>
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0 }}>
           <PricingBadge pricingType={tool.pricingType} />
           <PriorityBadge priorityKey={tool.priorityKey} label={tool.priority} />
           {tool.taggingStatus === 'pending' && (
@@ -186,7 +192,7 @@ function SavedToolCard({ tool, onDelete, onOpenDetail }) {
 
       {/* Note */}
       {tool.note && (
-        <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'break-word', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {tool.note}
         </p>
       )}
