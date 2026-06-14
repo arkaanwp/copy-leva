@@ -10,6 +10,13 @@ class OpenAIService
 {
     private function requestOpenRouter(array $payload): array
     {
+        $baseUrl = config('services.openai.base_url', 'https://openrouter.ai/api/v1');
+        
+        // Hanya tambahkan reasoning jika menggunakan OpenRouter
+        if (str_contains($baseUrl, 'openrouter') && !isset($payload['reasoning'])) {
+            $payload['reasoning'] = ['enabled' => true];
+        }
+
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . config('services.openai.api_key'),
             'Content-Type' => 'application/json',
@@ -17,7 +24,7 @@ class OpenAIService
             'X-Title' => 'Leva',
         ])
         ->timeout(45)
-        ->post(config('services.openai.base_url', 'https://openrouter.ai/api/v1') . '/chat/completions', $payload);
+        ->post($baseUrl . '/chat/completions', $payload);
 
         if (!$response->successful()) {
             throw new RuntimeException('OpenRouter error: ' . $response->body());
@@ -47,7 +54,6 @@ class OpenAIService
             ],
             'response_format' => ['type' => 'json_object'],
             'temperature' => 0.4,
-            'reasoning' => ['enabled' => true],
         ]);
 
         $rawText = data_get($response, 'choices.0.message.content');
@@ -88,7 +94,6 @@ class OpenAIService
             ],
             'response_format' => ['type' => 'json_object'],
             'temperature' => 0.2,
-            'reasoning' => ['enabled' => true],
         ]);
 
         $rawText = data_get($response, 'choices.0.message.content');
@@ -123,7 +128,6 @@ class OpenAIService
                 ['role' => 'user', 'content' => $message]
             ],
             'temperature' => 0.4,
-            'reasoning' => ['enabled' => true],
         ]);
 
         $rawText = data_get($response, 'choices.0.message.content');
@@ -163,7 +167,6 @@ PROMPT;
                 ['role' => 'user', 'content' => $prompt]
             ],
             'temperature' => 0.2,
-            'reasoning' => ['enabled' => true],
         ]);
 
         return trim(data_get($response, 'choices.0.message.content', 'Direkomendasikan berdasarkan relevansi.'));
@@ -190,6 +193,20 @@ Aturan wajib:
 - Tulis deskripsi 2-3 kalimat yang berisi arahan yang jelas.
 - Tulis tips 1-2 kalimat yang sangat konkret (misal: "Gunakan teknik Pomodoro 25 menit", "Gunakan Zotero untuk manajemen sitasi").
 - Kategori alat AI yang direkomendasikan HARUS salah satu dari: Research, Writing, Coding, Data, Academic, Productivity.
+
+Gunakan schema JSON berikut:
+{
+  "title": "string",
+  "sub_tasks": [
+    {
+      "judul_tugas": "string",
+      "deskripsi": "string",
+      "tips": "string",
+      "estimasi_waktu": "string",
+      "kategori_alat_ai_yang_rekomendasi": "Research|Writing|Coding|Data|Academic|Productivity"
+    }
+  ]
+}
 PROMPT;
     }
 
@@ -209,6 +226,12 @@ Konteks user:
 Aturan:
 - utility_priority HARUS salah satu dari: must_try, very_good, niche, optional.
 - semantic_keywords HARUS berisi tepat 5 keyword.
+
+Gunakan schema JSON berikut:
+{
+  "utility_priority": "must_try|very_good|niche|optional",
+  "semantic_keywords": ["string", "string", "string", "string", "string"]
+}
 PROMPT;
     }
 
