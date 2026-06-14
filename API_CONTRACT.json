@@ -1,0 +1,890 @@
+{
+  "meta": {
+    "title": "Kontrak API Leva — Dokumen Lengkap",
+    "version": "1.1.0",
+    "date": "2026-05-04",
+    "base_url": "http://localhost:8000/api",
+    "response_format": "JSON",
+    "authentication": "Laravel Sanctum (Bearer Token)",
+    "spec_reference": "Dokumen Konsep Dasar dan SRS Proyek Leva (IEEE 830-1998)"
+  },
+  "conventions": {
+    "success_response": {
+      "message": "Keterangan operasi",
+      "data": {}
+    },
+    "validation_error_response": {
+      "http_code": 422,
+      "body": {
+        "message": "The given data was invalid.",
+        "errors": {
+          "field_name": ["Pesan error spesifik."]
+        }
+      }
+    },
+    "user_status_enum": [
+      { "value": "PENDING", "description": "Baru registrasi, belum menyelesaikan onboarding (profil kosong)" },
+      { "value": "ACTIVE", "description": "Onboarding selesai — profil tersimpan ke Qdrant sebagai vector parameter" }
+    ],
+    "bookmark_priority_quadrant": [
+      { "db_value": "must_try",  "ui_label": "Wajib Dicoba",        "description": "Fungsionalitas inti yang mengubah permainan untuk jurusan tersebut" },
+      { "db_value": "very_good", "ui_label": "Sangat Bagus",        "description": "Efisiensi tinggi, direkomendasikan kuat" },
+      { "db_value": "niche",     "ui_label": "Bagus/Niche",         "description": "Situasional atau untuk tugas spesifik" },
+      { "db_value": "optional",  "ui_label": "Opsional/Alternatif", "description": "Duplikasi fungsional dari alat yang lebih kuat" }
+    ]
+  },
+  "endpoints": {
+    "auth": {
+      "section": "A",
+      "title": "Autentikasi",
+      "routes": [
+        {
+          "id": "auth_register",
+          "method": "POST",
+          "path": "/api/auth/register",
+          "name": "Registrasi Pengguna Baru",
+          "feature": "Fondasi Sistem",
+          "auth": "Public",
+          "status": "PERLU_DIMODIFIKASI",
+          "status_note": "Route saat ini: /api/register, perlu prefix /auth",
+          "request_body": {
+            "name": "string (maks 255 karakter)",
+            "email": "string (format email valid, unik)",
+            "password": "string (min 8 karakter)",
+            "password_confirmation": "string"
+          },
+          "responses": {
+            "201": {
+              "message": "User registered successfully",
+              "data": {
+                "id": "uuid",
+                "name": "Renisa Assyifa Putri",
+                "email": "renisa@example.com",
+                "status": "PENDING"
+              }
+            },
+            "422_cases": [
+              { "condition": "Email sudah terdaftar", "message": "The email has already been taken." },
+              { "condition": "Password tidak cocok",  "message": "The password field confirmation does not match." }
+            ]
+          },
+          "implementation_notes": [
+            "Status user otomatis PENDING → user harus selesaikan onboarding (POST /api/profile) untuk akses dashboard",
+            "Token belum diberikan saat registrasi — harus login dulu",
+            "Data profil dari onboarding nantinya disimpan sebagai atribut vektor berparameter di Qdrant (REQ-F01)"
+          ]
+        },
+        {
+          "id": "auth_login",
+          "method": "POST",
+          "path": "/api/auth/login",
+          "name": "Login dan Dapatkan Bearer Token",
+          "auth": "Public",
+          "status": "PERLU_DIMODIFIKASI",
+          "status_note": "Route saat ini: /api/login",
+          "request_body": {
+            "email": "string",
+            "password": "string"
+          },
+          "responses": {
+            "200": {
+              "message": "Login successful",
+              "data": {
+                "user": {
+                  "id": "uuid",
+                  "name": "Renisa Assyifa Putri",
+                  "email": "renisa@example.com",
+                  "status": "ACTIVE"
+                },
+                "token": "1|abc123tokenstring..."
+              }
+            },
+            "error_cases": [
+              { "http_code": 401, "condition": "Email/password salah",    "message": "Invalid credentials" },
+              { "http_code": 422, "condition": "Field wajib kosong",      "message": "The email field is required." }
+            ]
+          },
+          "implementation_notes": [
+            "Cek status setelah login: jika PENDING → redirect ke onboarding; jika ACTIVE → redirect ke dashboard"
+          ]
+        },
+        {
+          "id": "auth_logout",
+          "method": "POST",
+          "path": "/api/auth/logout",
+          "name": "Logout dan Cabut Token",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "responses": {
+            "200": {
+              "message": "Logged out successfully"
+            }
+          },
+          "implementation_notes": [
+            "Gunakan $request->user()->currentAccessToken()->delete() — hanya cabut token aktif saat ini",
+            "Frontend hapus token dari localStorage dan redirect ke halaman login"
+          ]
+        },
+        {
+          "id": "auth_me",
+          "method": "GET",
+          "path": "/api/auth/me",
+          "name": "Ambil Data User yang Sedang Login",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIMODIFIKASI",
+          "status_note": "Route saat ini: /api/me",
+          "responses": {
+            "200": {
+              "message": "Current user retrieved successfully",
+              "data": {
+                "user": {
+                  "id": "uuid",
+                  "name": "Renisa Assyifa Putri",
+                  "email": "renisa@example.com",
+                  "status": "ACTIVE",
+                  "profile": {
+                    "major": "Teknik Informatika",
+                    "semester": 6,
+                    "language_preference": "id",
+                    "learning_style": "visual"
+                  }
+                }
+              }
+            }
+          },
+          "notes": [
+            "Jika profil belum diisi (status: PENDING): field profile akan null"
+          ]
+        }
+      ]
+    },
+    "profile": {
+      "section": "B",
+      "title": "Profil Pengguna",
+      "req": "REQ-F01 (Profiling Kontekstual)",
+      "spec_context": "Data profil (jurusan, semester, preferensi bahasa) disimpan sebagai atribut vektor berparameter dalam instance Qdrant untuk memfasilitasi operasi pemfilteran kueri secara real-time.",
+      "routes": [
+        {
+          "id": "profile_create",
+          "method": "POST",
+          "path": "/api/profile",
+          "name": "Buat Profil Kontekstual (Onboarding)",
+          "feature": "REQ-F01",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIMODIFIKASI",
+          "status_note": "Route saat ini: /api/onboarding",
+          "request_body": {
+            "major": "string (nama jurusan, maks 255 karakter)",
+            "semester": "integer (1–14)",
+            "language_preference": "id | en",
+            "learning_style": "visual | auditory | kinesthetic"
+          },
+          "frontend_mismatch_note": "Frontend mengirim field jurusan (→ major) dan bahasa (→ language_preference). Perlu mapping di layer service frontend.",
+          "responses": {
+            "200": {
+              "message": "Onboarding completed successfully",
+              "data": {
+                "user": {
+                  "id": "uuid",
+                  "name": "Renisa Assyifa Putri",
+                  "email": "renisa@example.com",
+                  "status": "ACTIVE",
+                  "profile": {
+                    "major": "Teknik Informatika",
+                    "semester": 6,
+                    "language_preference": "id",
+                    "learning_style": "visual"
+                  }
+                }
+              }
+            },
+            "error_cases": [
+              { "http_code": 409, "condition": "Profil sudah pernah dibuat", "message": "User already completed onboarding." },
+              { "http_code": 422, "condition": "Validasi gagal",             "message": "The major field is required." }
+            ]
+          },
+          "implementation_notes": [
+            "Setelah profil tersimpan ke MySQL, trigger async job untuk upsert profil ke Qdrant sebagai payload filter",
+            "Status user berubah PENDING → ACTIVE dalam satu transaksi database"
+          ]
+        },
+        {
+          "id": "profile_get",
+          "method": "GET",
+          "path": "/api/profile",
+          "name": "Ambil Profil Pengguna",
+          "feature": "REQ-F01",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "responses": {
+            "200": {
+              "message": "Profile retrieved successfully",
+              "data": {
+                "profile": {
+                  "id": "uuid",
+                  "major": "Teknik Informatika",
+                  "semester": 6,
+                  "language_preference": "id",
+                  "learning_style": "visual",
+                  "updated_at": "2026-04-15T07:30:00Z"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "profile_update",
+          "method": "PUT",
+          "path": "/api/profile",
+          "name": "Update Profil Pengguna",
+          "feature": "REQ-F01",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "request_body_note": "Semua field opsional",
+          "request_body": {
+            "major": "string (opsional)",
+            "semester": "integer (opsional)",
+            "language_preference": "id | en (opsional)",
+            "learning_style": "visual | auditory | kinesthetic (opsional)"
+          },
+          "implementation_notes": [
+            "Jika major berubah, trigger job async untuk update payload filter di Qdrant",
+            "Dipakai oleh ProfileView.jsx saat user menekan Simpan Perubahan"
+          ]
+        }
+      ]
+    },
+    "tools": {
+      "section": "C",
+      "title": "Alat AI / Scraped Tools",
+      "req": "REQ-F02 & REQ-F04",
+      "routes": [
+        {
+          "id": "tools_list",
+          "method": "GET",
+          "path": "/api/tools",
+          "name": "Ambil Daftar Alat AI",
+          "feature": "REQ-F02 (data dari scraper), REQ-F04 (filter per profil)",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "query_parameters": [
+            { "name": "page",     "type": "integer", "default": 1,  "description": "Nomor halaman" },
+            { "name": "per_page", "type": "integer", "default": 12, "description": "Maks 50" },
+            { "name": "category", "type": "string",  "default": null, "description": "Research | Writing | Coding | Data | Academic | Productivity" },
+            { "name": "pricing",  "type": "string",  "default": null, "description": "free | freemium | paid | opensource" }
+          ],
+          "responses": {
+            "200": {
+              "message": "Tools retrieved successfully",
+              "data": {
+                "tools": [
+                  {
+                    "id": 1,
+                    "name": "Perplexity AI",
+                    "url": "perplexity.ai",
+                    "description": "Mesin pencari berbasis AI dengan sumber terverifikasi.",
+                    "category": "Research",
+                    "pricing_type": "freemium",
+                    "rating": 4.8,
+                    "qdrant_uuid": "uuid-string"
+                  }
+                ],
+                "pagination": {
+                  "current_page": 1,
+                  "per_page": 12,
+                  "total": 12,
+                  "last_page": 1
+                }
+              }
+            }
+          },
+          "implementation_notes": [
+            "Idealnya filter berdasarkan major user dari profil untuk personalisasi (Dashboard)",
+            "Data diisi oleh Python scraper via webhook internal setiap 24 jam (REQ-F02)"
+          ]
+        },
+        {
+          "id": "tools_detail",
+          "method": "GET",
+          "path": "/api/tools/{id}",
+          "name": "Detail Satu Alat AI",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "path_params": [
+            { "name": "id", "type": "integer", "description": "ID tool dari MySQL" }
+          ],
+          "responses": {
+            "200": {
+              "message": "Tool retrieved successfully",
+              "data": {
+                "tool": {
+                  "id": 1,
+                  "name": "Perplexity AI",
+                  "url": "perplexity.ai",
+                  "description": "...",
+                  "category": "Research",
+                  "pricing_type": "freemium",
+                  "rating": 4.8,
+                  "qdrant_uuid": "uuid-string",
+                  "scraped_at": "2026-05-04T00:00:00Z"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "tools_search",
+          "method": "GET",
+          "path": "/api/tools/search",
+          "name": "Cari Alat AI via Hybrid Search Qdrant",
+          "feature": "REQ-F04 — Rekomendasi Terkonteks",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "spec_context": "Sistem melakukan pencarian hibrida di Qdrant: dense vector similarity (cosine) + sparse vector filtering berdasarkan profil user (major, language). Skor relevansi minimum hasil teratas: 0.85 (REQ-F04).",
+          "query_parameters": [
+            { "name": "q",     "type": "string",  "required": true,  "description": "Query teks bebas dari user" },
+            { "name": "limit", "type": "integer", "required": false, "description": "Default 5, maks 20" }
+          ],
+          "responses": {
+            "200": {
+              "message": "Search completed successfully",
+              "data": {
+                "query": "tools untuk literature review skripsi",
+                "results": [
+                  {
+                    "id": 1,
+                    "name": "Perplexity AI",
+                    "url": "perplexity.ai",
+                    "description": "Mesin pencari berbasis AI...",
+                    "category": "Research",
+                    "pricing_type": "freemium",
+                    "score": 0.94,
+                    "why_recommended": "Relevan untuk mahasiswa Teknik Informatika yang membutuhkan alat riset akademik terverifikasi."
+                  }
+                ]
+              }
+            },
+            "error_cases": [
+              { "http_code": 422, "condition": "Query kosong",           "message": "The q field is required." },
+              { "http_code": 503, "condition": "Qdrant tidak tersedia",  "message": "Search service temporarily unavailable." }
+            ]
+          },
+          "implementation_notes": [
+            "Embed query menggunakan OpenAI text-embedding-3-small (dimensi 1536)",
+            "Query ke koleksi Qdrant: tools_semantic_vectors",
+            "Filter Qdrant: category_filter = kategori jurusan user (parameterized index)",
+            "Fallback ke MySQL LIKE query jika Qdrant tidak tersedia (REQ-NF02: latency < 50ms)"
+          ]
+        }
+      ]
+    },
+    "tasks": {
+      "section": "D",
+      "title": "Dekomposisi Tugas / PDF",
+      "req": "REQ-F03",
+      "spec_context": "LLM menggunakan paradigma KERNEL prompt engineering. Output JSON wajib berisi: judul_tugas, estimasi_waktu, kategori_alat_ai_yang_rekomendasi. PDF di-parse oleh spatie/pdf-to-text. Pemrosesan < 5 detik (REQ-F03).",
+      "routes": [
+        {
+          "id": "tasks_submit",
+          "method": "POST",
+          "path": "/api/tasks",
+          "name": "Submit Tugas untuk Dekomposisi Async",
+          "feature": "REQ-F03",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "request_options": {
+            "option_a_pdf": {
+              "content_type": "multipart/form-data",
+              "fields": {
+                "pdf_file": "binary .pdf (maks 10MB)",
+                "description": "string (opsional)"
+              }
+            },
+            "option_b_text": {
+              "content_type": "application/json",
+              "fields": {
+                "text": "string",
+                "description": "string (opsional)"
+              }
+            }
+          },
+          "responses": {
+            "202": {
+              "message": "Task submitted for processing",
+              "data": {
+                "task_id": "uuid",
+                "status": "processing",
+                "estimated_seconds": 25,
+                "poll_url": "/api/tasks/uuid/status"
+              }
+            }
+          },
+          "llm_output_schema": [
+            {
+              "judul_tugas": "Cari Topik",
+              "estimasi_waktu": "1–2 hari",
+              "kategori_alat_ai_yang_rekomendasi": "Research"
+            }
+          ],
+          "implementation_notes": [
+            "HTTP 202 (bukan 200) — proses async via Laravel Queue + Redis",
+            "Job pipeline: ekstrak teks PDF (spatie/pdf-to-text) → chunk → LLM → parse JSON → query Qdrant per sub-task → simpan ke tasks_master + atomic_sub_tasks",
+            "PDF disimpan sementara di tmpfs, dihapus otomatis setelah ekstraksi (REQ-NF03)",
+            "Simpan source_pdf_hash (SHA-256) untuk deduplication"
+          ]
+        },
+        {
+          "id": "tasks_list",
+          "method": "GET",
+          "path": "/api/tasks",
+          "name": "Daftar Semua Task Milik User",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "responses": {
+            "200": {
+              "message": "Tasks retrieved successfully",
+              "data": {
+                "tasks": [
+                  {
+                    "task_id": "uuid",
+                    "title": "Menyusun Skripsi Teknik Informatika",
+                    "status": "completed",
+                    "sub_tasks_count": 5,
+                    "completed_count": 2,
+                    "source_type": "text",
+                    "created_at": "2026-05-04T10:00:00Z"
+                  }
+                ],
+                "pagination": {
+                  "current_page": 1,
+                  "total": 5,
+                  "last_page": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "tasks_detail",
+          "method": "GET",
+          "path": "/api/tasks/{taskId}",
+          "name": "Detail Task Beserta Sub-Tasks",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "path_params": [
+            { "name": "taskId", "type": "uuid" }
+          ],
+          "responses": {
+            "200": {
+              "message": "Task retrieved successfully",
+              "data": {
+                "task": {
+                  "task_id": "uuid",
+                  "title": "Menyusun Skripsi Teknik Informatika",
+                  "status": "completed",
+                  "source_type": "text",
+                  "created_at": "2026-05-04T10:00:00Z",
+                  "sub_tasks": [
+                    {
+                      "sub_task_id": "uuid",
+                      "actionable_title": "Cari Topik",
+                      "description": "Langkah pertama dan sangat krusial...",
+                      "tips": "Gunakan Perplexity AI untuk riset cepat...",
+                      "status": "done",
+                      "category": "Research",
+                      "estimated_duration": "1–2 hari",
+                      "order": 1,
+                      "recommended_tools": [
+                        {
+                          "id": 1,
+                          "name": "Perplexity AI",
+                          "url": "perplexity.ai",
+                          "category": "Research"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "subtask_update_status",
+          "method": "PATCH",
+          "path": "/api/tasks/{taskId}/sub-tasks/{subTaskId}",
+          "name": "Update Status Sub-Task",
+          "feature": "REQ-F03 (Atomic Habits — loop kebiasaan)",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "path_params": [
+            { "name": "taskId",    "type": "uuid" },
+            { "name": "subTaskId", "type": "uuid" }
+          ],
+          "request_body": {
+            "status": "done | next"
+          },
+          "responses": {
+            "200": {
+              "message": "Sub-task updated successfully",
+              "data": {
+                "sub_task": {
+                  "sub_task_id": "uuid",
+                  "actionable_title": "Cari Topik",
+                  "status": "done"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "tasks_delete",
+          "method": "DELETE",
+          "path": "/api/tasks/{taskId}",
+          "name": "Hapus Task Beserta Sub-Tasks",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "path_params": [
+            { "name": "taskId", "type": "uuid" }
+          ],
+          "responses": {
+            "200": {
+              "message": "Task deleted successfully"
+            }
+          }
+        },
+        {
+          "id": "tasks_poll_status",
+          "method": "GET",
+          "path": "/api/tasks/{taskId}/status",
+          "name": "Polling Status Pemrosesan Task Async",
+          "feature": "REQ-F03 (fallback polling jika WebSocket belum aktif)",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "path_params": [
+            { "name": "taskId", "type": "uuid" }
+          ],
+          "responses": {
+            "200": {
+              "message": "Task status retrieved",
+              "data": {
+                "task_id": "uuid",
+                "status": "completed",
+                "progress_message": "Sub-tasks berhasil dibuat",
+                "sub_tasks_count": 5,
+                "ready": true
+              }
+            }
+          },
+          "status_enum": [
+            { "value": "processing", "description": "Job sedang berjalan di queue" },
+            { "value": "completed",  "description": "Dekomposisi selesai" },
+            { "value": "failed",     "description": "Gagal — sertakan error_message" }
+          ],
+          "implementation_notes": [
+            "Frontend polling setiap 2 detik",
+            "Alternatif: WebSocket via Laravel Broadcasting (event TaskCompleted, channel private-user.{userId})"
+          ]
+        }
+      ]
+    },
+    "chat": {
+      "section": "E",
+      "title": "Rekomendasi Chat / RAG",
+      "req": "REQ-F04",
+      "spec_context": "Sistem menggunakan Agentic RAG. LLM hanya boleh mensintesis respons dari data yang disuntikkan dari Qdrant — dilarang keras membuat rekomendasi yang tidak ada di database (anti-halusinasi).",
+      "routes": [
+        {
+          "id": "chat_send",
+          "method": "POST",
+          "path": "/api/chat",
+          "name": "Kirim Pesan dan Dapatkan Respons RAG",
+          "feature": "REQ-F04",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "request_body": {
+            "message": "string",
+            "context_task_id": "uuid (opsional — link ke task yang sedang aktif)"
+          },
+          "responses": {
+            "200": {
+              "message": "Chat response generated",
+              "data": {
+                "reply": "Untuk analisis data statistik, saya rekomendasikan Julius AI karena kemampuannya menganalisis spreadsheet dengan bahasa natural...",
+                "recommended_tools": [
+                  {
+                    "id": 4,
+                    "name": "Julius AI",
+                    "url": "julius.ai",
+                    "description": "Analisis data dengan bahasa natural.",
+                    "category": "Data",
+                    "pricing_type": "freemium",
+                    "score": 0.95
+                  }
+                ],
+                "conversation_id": "uuid"
+              }
+            }
+          },
+          "rag_pipeline": [
+            "1. Embed query user → vektor 1536 dimensi (OpenAI text-embedding-3-small)",
+            "2. Hybrid search Qdrant collection tools_semantic_vectors",
+            "3. Filter parametrik: category_filter sesuai major user",
+            "4. Ambil 3–5 entri skor tertinggi (min score 0.85 per REQ-F04)",
+            "5. Suntikkan ke prompt LLM sebagai konteks",
+            "6. Simpan conversation + messages ke DB"
+          ],
+          "implementation_notes": [
+            "Terapkan throttle:30,1 untuk endpoint ini (cegah abuse ke API LLM)"
+          ]
+        },
+        {
+          "id": "chat_history",
+          "method": "GET",
+          "path": "/api/chat/history",
+          "name": "Ambil Riwayat Percakapan",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "responses": {
+            "200": {
+              "message": "Chat history retrieved successfully",
+              "data": {
+                "conversations": [
+                  {
+                    "id": "uuid",
+                    "title": "Bantu saya susun skripsi",
+                    "last_message": "Untuk subtask Cari Topik, saya sarankan Perplexity AI...",
+                    "created_at": "2026-04-05T10:00:00Z"
+                  }
+                ],
+                "pagination": {
+                  "current_page": 1,
+                  "total": 5,
+                  "last_page": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "chat_history_delete",
+          "method": "DELETE",
+          "path": "/api/chat/history",
+          "name": "Hapus Semua Riwayat Chat",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "responses": {
+            "200": {
+              "message": "Chat history cleared successfully"
+            }
+          }
+        }
+      ]
+    },
+    "bookmarks": {
+      "section": "F",
+      "title": "Smart Bookmarks",
+      "req": "REQ-F05 (Penanda Pintar & Tagging)",
+      "spec_context": "LLM berperan sebagai agen auditor. Memilih kuadran prioritas (4 level) dan menghasilkan tepat 5 kata kunci semantik. Proses tagging async via Redis Queue.",
+      "routes": [
+        {
+          "id": "bookmarks_create",
+          "method": "POST",
+          "path": "/api/bookmarks",
+          "name": "Simpan Alat ke Library Pribadi",
+          "feature": "REQ-F05",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "request_body": {
+            "tool_id": "integer",
+            "note": "string (opsional)"
+          },
+          "responses": {
+            "202": {
+              "message": "Tool saved. AI tagging in progress.",
+              "data": {
+                "bookmark_id": "uuid",
+                "tool_id": 1,
+                "tool_name": "Perplexity AI",
+                "tagging_status": "pending",
+                "note": "Digunakan untuk bab 2 skripsi"
+              }
+            }
+          },
+          "implementation_notes": [
+            "HTTP 202 — LLM tagging async via Queue Worker",
+            "Prompt ke LLM (KERNEL pattern): evaluasi korelasi tool dengan major user → output kuadran + 5 keywords",
+            "Setelah tagging selesai, update utility_priority, semantic_keywords, tagging_status: completed",
+            "Broadcast event BookmarkTagged ke frontend jika WebSocket aktif"
+          ]
+        },
+        {
+          "id": "bookmarks_list",
+          "method": "GET",
+          "path": "/api/bookmarks",
+          "name": "Daftar Bookmark dengan Filter",
+          "feature": "REQ-F05",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "query_parameters": [
+            { "name": "priority", "type": "string",  "description": "must_try | very_good | niche | optional" },
+            { "name": "category", "type": "string",  "description": "Kategori tool" },
+            { "name": "q",        "type": "string",  "description": "Cari nama/keyword/note" },
+            { "name": "sort",     "type": "string",  "description": "latest | oldest | rating | az | za" },
+            { "name": "page",     "type": "integer", "default": 1, "description": "Nomor halaman" }
+          ],
+          "responses": {
+            "200": {
+              "message": "Bookmarks retrieved successfully",
+              "data": {
+                "bookmarks": [
+                  {
+                    "id": "uuid",
+                    "tool": {
+                      "id": 1,
+                      "name": "Perplexity AI",
+                      "url": "perplexity.ai",
+                      "category": "Research",
+                      "pricing_type": "freemium",
+                      "rating": 4.8
+                    },
+                    "utility_priority": "must_try",
+                    "priority_label": "Wajib Dicoba",
+                    "semantic_keywords": ["literature review", "sumber terverifikasi", "riset cepat", "academic search", "AI search"],
+                    "tagging_status": "completed",
+                    "note": "Digunakan untuk bab 2 skripsi",
+                    "saved_at": "2026-04-03T00:00:00Z"
+                  }
+                ],
+                "pagination": {
+                  "current_page": 1,
+                  "total": 6,
+                  "last_page": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "bookmarks_delete",
+          "method": "DELETE",
+          "path": "/api/bookmarks/{toolId}",
+          "name": "Hapus Bookmark",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "path_params": [
+            { "name": "toolId", "type": "integer" }
+          ],
+          "responses": {
+            "200": {
+              "message": "Bookmark removed successfully"
+            }
+          }
+        },
+        {
+          "id": "bookmarks_tags",
+          "method": "GET",
+          "path": "/api/bookmarks/tags",
+          "name": "Daftar Semua Tag Semantik Unik Milik User",
+          "feature": "REQ-F05 (cloud tag navigasi dinamis)",
+          "auth": "Bearer Token (Sanctum)",
+          "status": "PERLU_DIBUAT",
+          "responses": {
+            "200": {
+              "message": "Tags retrieved successfully",
+              "data": {
+                "tags": ["literature review", "jurnal", "sitasi", "peer review", "coding", "autocomplete"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "internal": {
+      "section": "G",
+      "title": "Webhook Internal",
+      "req": "REQ-F02",
+      "routes": [
+        {
+          "id": "scraper_webhook",
+          "method": "POST",
+          "path": "/api/internal/scraper-webhook",
+          "name": "Penerima Data Python Scraper (theresanaiforthat.com/timeline/)",
+          "feature": "REQ-F02 — Ekstraksi Data Otomatis setiap 24 jam",
+          "auth": "Secret Key (Header X-Scraper-Secret)",
+          "status": "PERLU_DIBUAT",
+          "spec_context": "Python scraper menggunakan curl_cffi + BoringSSL untuk bypass Cloudflare WAF (REQ-NF01). Setelah data diterima, backend trigger embed via OpenAI text-embedding-3-small (1536 dim) dan upsert ke koleksi Qdrant tools_semantic_vectors.",
+          "request_headers": {
+            "X-Scraper-Secret": "{SCRAPER_SECRET_KEY dari .env}",
+            "Content-Type": "application/json"
+          },
+          "request_body": {
+            "tools": [
+              {
+                "name": "Perplexity AI",
+                "url": "perplexity.ai",
+                "description": "Mesin pencari berbasis AI dengan sumber terverifikasi.",
+                "category": "Research",
+                "pricing_type": "freemium"
+              }
+            ],
+            "scraped_at": "2026-05-04T00:00:00Z",
+            "source": "theresanaiforthat.com/timeline/"
+          },
+          "responses": {
+            "200": {
+              "message": "Scraper data received",
+              "data": {
+                "upserted_count": 12,
+                "skipped_count": 3
+              }
+            }
+          },
+          "implementation_notes": [
+            "Validasi X-Scraper-Secret dari .env — jangan gunakan Sanctum token",
+            "PERINGATAN KEAMANAN: Tambahkan IP whitelist server scraper di middleware",
+            "Setelah upsert ke MySQL: trigger async job → generate embedding → upsert ke Qdrant dengan payload: tool_mysql_id, category_filter, extracted_description",
+            "Rate: 24 jam sekali (Laravel Scheduler)"
+          ]
+        }
+      ]
+    }
+  },
+  "qdrant": {
+    "section": "H",
+    "title": "Struktur Qdrant (Referensi)",
+    "collection": "tools_semantic_vectors",
+    "config": {
+      "vector_dimension": 1536,
+      "embedding_model": "text-embedding-3-small (OpenAI)",
+      "metric_function": "Cosine Similarity",
+      "payload_indexes": [
+        { "field": "tool_mysql_id",        "type": "Integer",  "mode": "parameterized" },
+        { "field": "category_filter",       "type": "Keyword" },
+        { "field": "extracted_description", "type": "Text" }
+      ]
+    },
+    "point_payload_schema": {
+      "tool_mysql_id": 1,
+      "category_filter": "Research",
+      "extracted_description": "Mesin pencari berbasis AI dengan sumber terverifikasi..."
+    },
+    "example_hybrid_query": {
+      "language": "python",
+      "code": "client.search(collection_name='tools_semantic_vectors', query_vector=embedding_vector, query_filter=Filter(must=[FieldCondition(key='category_filter', match=MatchValue(value='Research'))]), limit=5, score_threshold=0.85)"
+    }
+  },
+  "enums": {
+    "users.status":                     ["PENDING", "ACTIVE"],
+    "tasks_master.status":              ["processing", "completed", "failed"],
+    "tasks_master.source_type":         ["text", "pdf"],
+    "atomic_sub_tasks.status":          ["done", "next"],
+    "saved_libraries.utility_priority": ["must_try", "very_good", "niche", "optional"],
+    "saved_libraries.tagging_status":   ["pending", "completed", "failed"],
+    "chat_messages.role":               ["user", "assistant"],
+    "scraped_tools.pricing_type":       ["free", "freemium", "paid", "opensource"],
+    "scraped_tools.category":           ["Research", "Writing", "Coding", "Data", "Academic", "Productivity"],
+    "user_profiles.language_preference": ["id", "en"],
+    "user_profiles.learning_style":     ["visual", "auditory", "kinesthetic"]
+  }
+}

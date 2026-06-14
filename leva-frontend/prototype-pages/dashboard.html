@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leva - Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+:root {
+  --color-primary: #6C63FF;
+  --color-primary-light: #EEF0FF;
+  --color-primary-dark: #5A52D5;
+  --color-secondary: #10B981;
+  --color-secondary-light: #D1FAE5;
+  --color-accent: #F59E0B;
+  --color-bg: #F8F9FC;
+  --color-surface: #FFFFFF;
+  --color-text-primary: #1A1A2E;
+  --color-text-secondary: #64748B;
+  --color-border: #E2E8F0;
+  --color-sidebar: #1E1E2F;
+  --color-sidebar-hover: #2A2A42;
+  --color-sidebar-active: #6C63FF;
+  --color-sidebar-text: #CBD5E1;
+  --color-sidebar-text-muted: #64748B;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.no-click button,
+.no-click a,
+.no-click [role="button"],
+.no-click input,
+.no-click select,
+.no-click textarea {
+  pointer-events: none;
+}
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: var(--color-sidebar);
+  color: white;
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 4px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.logo-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #ffffff, #c4b5fd);
+  color: #1f2937;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.side-btn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--color-sidebar-text);
+  padding: 9px 12px;
+  border-radius: 10px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.side-btn.active {
+  background: var(--color-sidebar-active);
+  color: white;
+}
+
+.side-btn.soft {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.search-box {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.history-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-sidebar-text-muted);
+  letter-spacing: 0.08em;
+  margin: 8px 0;
+  padding-left: 4px;
+}
+
+.history-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 9px;
+  color: var(--color-sidebar-text);
+  font-size: 13px;
+}
+
+.history-item.active {
+  background: rgba(108, 99, 255, 0.25);
+  color: #ffffff;
+}
+
+.history-date {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--color-sidebar-text-muted);
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 4px 0;
+}
+
+.profile-mini {
+  margin-top: auto;
+  border: none;
+  background: transparent;
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: white;
+  text-align: left;
+}
+
+.avatar-mini {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.profile-mini-name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profile-mini-sub {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-sidebar-text-muted);
+}
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.main-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 36px;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-ghost {
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn-secondary {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.btn-ghost {
+  border: 1px solid var(--color-border);
+  background: white;
+  color: var(--color-text-secondary);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.page-subtitle {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  background: white;
+  color: var(--color-text-secondary);
+}
+
+.chip.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.tag {
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 3px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tag-research { background: #EDE9FE; color: #7C3AED; }
+.tag-writing { background: #FEF9C3; color: #A16207; }
+.tag-coding { background: #DBEAFE; color: #1D4ED8; }
+.tag-data { background: #DCFCE7; color: #15803D; }
+.tag-academic { background: #FFE4E6; color: #BE123C; }
+.tag-productivity { background: #F0FDFA; color: #0F766E; }
+
+.tool-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.tool-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 18px;
+}
+
+.kpi {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.kpi-label {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.hero-banner {
+  background: linear-gradient(135deg, var(--color-primary), #8B5CF6);
+  border-radius: 16px;
+  padding: 20px 24px;
+  color: white;
+}
+
+.progress-track {
+  width: 110px;
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: white;
+}
+
+.badge-done {
+  background: var(--color-secondary);
+  color: white;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge-next {
+  background: #F1F5F9;
+  color: var(--color-text-secondary);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pill-priority-high {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.pill-priority-good {
+  background: #D1FAE5;
+  color: #059669;
+}
+
+.pill-priority-later {
+  background: #DBEAFE;
+  color: #2563EB;
+}
+
+.pill-price-free {
+  background: #DCFCE7;
+  color: #15803D;
+}
+
+.pill-price-freemium {
+  background: #FEF3C7;
+  color: #B45309;
+}
+
+.pill-price-paid {
+  background: #FEE2E2;
+  color: #B91C1C;
+}
+
+.pill {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  background: #fff;
+}
+
+.textarea {
+  resize: none;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+}
+
+.toggle {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--color-primary);
+  position: relative;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  top: 3px;
+  right: 3px;
+  background: white;
+}
+
+.onboarding-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: linear-gradient(135deg, #6C63FF 0%, #8B5CF6 50%, #A78BFA 100%);
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 460px;
+  padding: 36px;
+}
+
+.step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 8px;
+  background: var(--color-border);
+}
+
+.step-dot.active {
+  width: 24px;
+  background: var(--color-primary);
+}
+
+.task-layout {
+  display: flex;
+  height: 100%;
+  min-height: 100vh;
+}
+
+.task-main {
+  flex: 1;
+  padding: 28px 24px;
+}
+
+.task-side {
+  width: 280px;
+  border-left: 1px solid var(--color-border);
+  background: #fff;
+  padding: 24px 16px;
+}
+
+.subtask-header {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #F8FAFC;
+}
+
+.subtask-body {
+  border-top: 1px solid var(--color-border);
+  padding: 18px 20px;
+}
+
+.center {
+  text-align: center;
+}
+
+.muted {
+  color: var(--color-text-secondary);
+}
+
+.icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (max-width: 1024px) {
+  .tool-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .task-layout {
+    flex-direction: column;
+  }
+
+  .task-side {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+
+  .main-content,
+  .task-main {
+    padding: 20px 16px;
+  }
+
+  .tool-grid-3,
+  .tool-grid-2,
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .row {
+    flex-direction: column;
+  }
+}
+
+    </style>
+  </head>
+  <body class="no-click">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="logo"><span class="logo-mark">✦</span>Leva</div>
+        <button class="side-btn soft">＋ New Chat</button>
+        <input class="search-box" placeholder="Cari riwayat... (Ctrl+K)" />
+
+        <nav class="col" style="gap:4px;">
+          <button class="side-btn active">⌂ Dashboard</button>
+          <button class="side-btn">💬 Chat &amp; Task</button>
+          <button class="side-btn">☰ Library</button>
+          <button class="side-btn">👤 Profile</button>
+          <button class="side-btn">⚙ Settings</button>
+        </nav>
+
+        <div class="sidebar-divider"></div>
+        <p class="history-title">RIWAYAT TUGAS</p>
+        <button class="history-item active">Bantu saya susun skripsi<div class="history-date">5 Apr 2026</div></button>
+        <button class="history-item">Gimana cara belajar koding dari 0<div class="history-date">3 Apr 2026</div></button>
+        <button class="history-item">Ajarkan saya kalkulus OSN<div class="history-date">1 Apr 2026</div></button>
+
+        <div class="sidebar-divider"></div>
+        <button class="profile-mini">
+          <span class="avatar-mini">R</span>
+          <span>
+            <p class="profile-mini-name">Renisa Mahardika</p>
+            <p class="profile-mini-sub">Teknik Informatika · Sem 6</p>
+          </span>
+        </button>
+      </aside>
+
+      <main class="main">
+        <div class="main-content">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;gap:12px;">
+            <div>
+              <h1 style="margin:0;font-size:26px;font-weight:800;">Selamat pagi, Renisa!</h1>
+              <p class="page-subtitle">Ini rekomendasi tools AI hari ini yang relevan untuk <strong>Teknik Informatika</strong> kamu.</p>
+            </div>
+            <div style="text-align:right;">
+              <p style="margin:0;font-size:13px;color:var(--color-text-secondary);">Rabu, 15 April 2026</p>
+              <span class="pill" style="background:var(--color-secondary-light);color:var(--color-secondary);margin-top:4px;">Diperbarui otomatis setiap hari</span>
+            </div>
+          </div>
+
+          <section style="margin-bottom:36px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+              <span class="icon">🔥</span>
+              <h2 style="margin:0;font-size:18px;font-weight:700;">Tools Pilihan Hari Ini</h2>
+            </div>
+
+            <div class="tool-grid-3">
+              <article class="card" style="padding:20px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                  <span class="tag tag-research">Research</span>
+                  <span class="pill pill-price-freemium">Freemium</span>
+                </div>
+                <h3 style="margin:0 0 8px;font-size:17px;">Perplexity AI</h3>
+                <p class="muted" style="font-size:13px;line-height:1.55;margin:0 0 12px;">Mesin pencari berbasis AI dengan sumber terverifikasi. Ideal untuk literature review cepat.</p>
+                <p style="margin:0 0 14px;font-size:12px;color:#F59E0B;font-weight:700;">★★★★☆ 4.8</p>
+                <div class="row">
+                  <button class="btn-secondary" style="flex:1;">Simpan</button>
+                  <button class="btn-primary" style="flex:1;">Buka</button>
+                </div>
+              </article>
+
+              <article class="card" style="padding:20px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                  <span class="tag tag-coding">Coding</span>
+                  <span class="pill pill-price-paid">Berbayar</span>
+                </div>
+                <h3 style="margin:0 0 8px;font-size:17px;">GitHub Copilot</h3>
+                <p class="muted" style="font-size:13px;line-height:1.55;margin:0 0 12px;">Asisten koding AI dari GitHub untuk autocomplete dan debug real-time.</p>
+                <p style="margin:0 0 14px;font-size:12px;color:#F59E0B;font-weight:700;">★★★★☆ 4.9</p>
+                <div class="row">
+                  <button class="btn-secondary" style="flex:1;">Simpan</button>
+                  <button class="btn-primary" style="flex:1;">Buka</button>
+                </div>
+              </article>
+
+              <article class="card" style="padding:20px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                  <span class="tag tag-productivity">Productivity</span>
+                  <span class="pill pill-price-freemium">Freemium</span>
+                </div>
+                <h3 style="margin:0 0 8px;font-size:17px;">Notion AI</h3>
+                <p class="muted" style="font-size:13px;line-height:1.55;margin:0 0 12px;">Workspace serba bisa dengan AI terintegrasi untuk nulis dan ringkas catatan.</p>
+                <p style="margin:0 0 14px;font-size:12px;color:#F59E0B;font-weight:700;">★★★★☆ 4.6</p>
+                <div class="row">
+                  <button class="btn-secondary" style="flex:1;">Simpan</button>
+                  <button class="btn-primary" style="flex:1;">Buka</button>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+            <span class="chip active">Semua</span>
+            <span class="chip">Research</span>
+            <span class="chip">Writing</span>
+            <span class="chip">Coding</span>
+            <span class="chip">Data</span>
+            <span class="chip">Academic</span>
+          </div>
+
+          <section class="tool-grid-3">
+            <article class="card" style="padding:16px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span class="tag tag-academic">Academic</span>
+                <span class="pill pill-price-freemium">Freemium</span>
+              </div>
+              <h3 style="margin:0 0 8px;font-size:15px;">Scite.ai</h3>
+              <p class="muted" style="margin:0;font-size:12px;line-height:1.5;">Temukan referensi ilmiah dengan konteks sitasi langsung.</p>
+            </article>
+
+            <article class="card" style="padding:16px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span class="tag tag-data">Data</span>
+                <span class="pill pill-price-freemium">Freemium</span>
+              </div>
+              <h3 style="margin:0 0 8px;font-size:15px;">Julius AI</h3>
+              <p class="muted" style="margin:0;font-size:12px;line-height:1.5;">Analisis data dan visualisasi dari spreadsheet secara instan.</p>
+            </article>
+
+            <article class="card" style="padding:16px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span class="tag tag-writing">Writing</span>
+                <span class="pill pill-price-freemium">Freemium</span>
+              </div>
+              <h3 style="margin:0 0 8px;font-size:15px;">Grammarly</h3>
+              <p class="muted" style="margin:0;font-size:12px;line-height:1.5;">Periksa grammar, tone, dan kejelasan tulisan akademikmu.</p>
+            </article>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

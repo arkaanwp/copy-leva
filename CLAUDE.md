@@ -1,0 +1,1 @@
+When running tests, building, or executing commands that generate long terminal outputs, you must ALWAYS prefix the command with 'rtk'. For example, use 'rtk pytest' or 'rtk go test' instead of running them directly.

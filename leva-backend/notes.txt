@@ -1,0 +1,5 @@
+User -> Reister -> Onboarding -> Dashboard
+User -> Register -> Onboarding -> Gagal/Tunda/Belum selesai -> set Pending
+User -> Login -> Onboarding -> set Active
+
+

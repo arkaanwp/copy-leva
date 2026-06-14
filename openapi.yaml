@@ -1,0 +1,1437 @@
+openapi: "3.0.3"
+
+info:
+  title: Leva API
+  description: |
+    API untuk sistem Leva — platform rekomendasi alat AI untuk mahasiswa.
+
+    **Autentikasi:** Laravel Sanctum Bearer Token (kecuali endpoint bertanda `Public`).
+    **Referensi Spesifikasi:** SRS Proyek Leva (IEEE 830-1998).
+  version: "1.1.0"
+  contact:
+    email: deberussadv@gmail.com
+
+servers:
+  - url: http://localhost:8000/api
+    description: Development server
+
+tags:
+  - name: Auth
+    description: Autentikasi dan manajemen sesi
+  - name: Profile
+    description: Profil kontekstual pengguna — REQ-F01
+  - name: Tools
+    description: Alat AI yang di-scrape — REQ-F02, REQ-F04
+  - name: Tasks
+    description: Dekomposisi tugas berbasis LLM — REQ-F03
+  - name: Chat
+    description: Rekomendasi percakapan RAG — REQ-F04
+  - name: Bookmarks
+    description: Library bookmark pintar — REQ-F05
+  - name: Internal
+    description: Webhook internal scraper — REQ-F02
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Laravel Sanctum Bearer Token
+    scraperSecret:
+      type: apiKey
+      in: header
+      name: X-Scraper-Secret
+      description: Secret key untuk webhook scraper internal (dari .env)
+
+  schemas:
+
+    # ─── Common ───────────────────────────────────────────────────────────────
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "The given data was invalid."
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            email: ["The email has already been taken."]
+
+    Pagination:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 12
+        total:
+          type: integer
+          example: 48
+        last_page:
+          type: integer
+          example: 4
+
+    # ─── Enums ────────────────────────────────────────────────────────────────
+
+    UserStatus:
+      type: string
+      enum: [PENDING, ACTIVE]
+      description: |
+        - `PENDING`: Baru registrasi, belum menyelesaikan onboarding
+        - `ACTIVE`: Onboarding selesai — profil tersimpan ke Qdrant sebagai vector parameter
+
+    ToolCategory:
+      type: string
+      enum: [Research, Writing, Coding, Data, Academic, Productivity]
+
+    PricingType:
+      type: string
+      enum: [free, freemium, paid, opensource]
+
+    LanguagePreference:
+      type: string
+      enum: [id, en]
+
+    LearningStyle:
+      type: string
+      enum: [visual, auditory, kinesthetic]
+
+    TaskStatus:
+      type: string
+      enum: [processing, completed, failed]
+
+    SubTaskStatus:
+      type: string
+      enum: [done, next]
+
+    UtilityPriority:
+      type: string
+      enum: [must_try, very_good, niche, optional]
+      description: |
+        - `must_try` — Wajib Dicoba: fungsionalitas inti yang mengubah permainan
+        - `very_good` — Sangat Bagus: efisiensi tinggi, direkomendasikan kuat
+        - `niche` — Bagus/Niche: situasional atau untuk tugas spesifik
+        - `optional` — Opsional/Alternatif: duplikasi fungsional dari alat yang lebih kuat
+
+    TaggingStatus:
+      type: string
+      enum: [pending, completed, failed]
+
+    # ─── Reusable Objects ─────────────────────────────────────────────────────
+
+    UserProfile:
+      type: object
+      properties:
+        major:
+          type: string
+          maxLength: 255
+          example: "Teknik Informatika"
+        semester:
+          type: integer
+          minimum: 1
+          maximum: 14
+          example: 6
+        language_preference:
+          $ref: "#/components/schemas/LanguagePreference"
+        learning_style:
+          $ref: "#/components/schemas/LearningStyle"
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Renisa Assyifa Putri"
+        email:
+          type: string
+          format: email
+          example: "renisa@example.com"
+        status:
+          $ref: "#/components/schemas/UserStatus"
+        profile:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/UserProfile"
+
+    Tool:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Perplexity AI"
+        url:
+          type: string
+          example: "perplexity.ai"
+        description:
+          type: string
+          example: "Mesin pencari berbasis AI dengan sumber terverifikasi."
+        category:
+          $ref: "#/components/schemas/ToolCategory"
+        pricing_type:
+          $ref: "#/components/schemas/PricingType"
+        rating:
+          type: number
+          format: float
+          example: 4.8
+        qdrant_uuid:
+          type: string
+          format: uuid
+
+    SubTask:
+      type: object
+      properties:
+        sub_task_id:
+          type: string
+          format: uuid
+        actionable_title:
+          type: string
+          example: "Cari Topik"
+        description:
+          type: string
+          example: "Langkah pertama dan sangat krusial dalam menyusun skripsi."
+        tips:
+          type: string
+          example: "Gunakan Perplexity AI untuk riset cepat."
+        status:
+          $ref: "#/components/schemas/SubTaskStatus"
+        category:
+          $ref: "#/components/schemas/ToolCategory"
+        estimated_duration:
+          type: string
+          example: "1–2 hari"
+        order:
+          type: integer
+          example: 1
+        recommended_tools:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tool"
+
+# =============================================================================
+# PATHS
+# =============================================================================
+
+paths:
+
+  # ╔═══════════════════════════════════════════════════════════╗
+  # ║  A. AUTH                                                  ║
+  # ╚═══════════════════════════════════════════════════════════╝
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Registrasi Pengguna Baru
+      description: |
+        Mendaftarkan user baru. Status awal `PENDING` — user harus menyelesaikan
+        onboarding (`POST /profile`) sebelum bisa mengakses dashboard.
+        Token **tidak** diberikan saat registrasi; harus login terlebih dahulu.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, password_confirmation]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                  example: "Renisa Assyifa Putri"
+                email:
+                  type: string
+                  format: email
+                  example: "renisa@example.com"
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: "password123"
+                password_confirmation:
+                  type: string
+                  format: password
+                  example: "password123"
+      responses:
+        "201":
+          description: Registrasi berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User registered successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                        example: "Renisa Assyifa Putri"
+                      email:
+                        type: string
+                        format: email
+                        example: "renisa@example.com"
+                      status:
+                        $ref: "#/components/schemas/UserStatus"
+        "422":
+          description: Validasi gagal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+              examples:
+                emailTaken:
+                  summary: Email sudah terdaftar
+                  value:
+                    message: "The given data was invalid."
+                    errors:
+                      email: ["The email has already been taken."]
+                passwordMismatch:
+                  summary: Password tidak cocok
+                  value:
+                    message: "The given data was invalid."
+                    errors:
+                      password: ["The password field confirmation does not match."]
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login dan Dapatkan Bearer Token
+      description: |
+        Cek field `data.user.status` setelah login:
+        - `PENDING` → redirect ke halaman onboarding
+        - `ACTIVE` → redirect ke dashboard
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "renisa@example.com"
+                password:
+                  type: string
+                  format: password
+                  example: "password123"
+      responses:
+        "200":
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Login successful"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/User"
+                      token:
+                        type: string
+                        example: "1|abc123tokenstring..."
+        "401":
+          description: Kredensial tidak valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Invalid credentials"
+        "422":
+          description: Validasi gagal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout dan Cabut Token
+      description: |
+        Mencabut token aktif saat ini (`currentAccessToken()->delete()`).
+        Frontend wajib menghapus token dari `localStorage` dan redirect ke halaman login.
+      responses:
+        "200":
+          description: Logout berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Ambil Data User yang Sedang Login
+      description: Field `profile` akan `null` jika status masih `PENDING`.
+      responses:
+        "200":
+          description: Data user berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Current user retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/User"
+
+  # ╔═══════════════════════════════════════════════════════════╗
+  # ║  B. PROFILE — REQ-F01                                    ║
+  # ╚═══════════════════════════════════════════════════════════╝
+
+  /profile:
+    post:
+      tags: [Profile]
+      summary: Buat Profil Kontekstual (Onboarding)
+      description: |
+        Setelah profil tersimpan ke MySQL, trigger async job untuk upsert ke Qdrant
+        sebagai payload filter. Status user berubah `PENDING` → `ACTIVE` dalam satu transaksi.
+
+        **Catatan frontend:** Field `jurusan` perlu di-mapping ke `major` dan `bahasa` ke
+        `language_preference` di layer service frontend.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [major, semester, language_preference, learning_style]
+              properties:
+                major:
+                  type: string
+                  maxLength: 255
+                  example: "Teknik Informatika"
+                semester:
+                  type: integer
+                  minimum: 1
+                  maximum: 14
+                  example: 6
+                language_preference:
+                  $ref: "#/components/schemas/LanguagePreference"
+                learning_style:
+                  $ref: "#/components/schemas/LearningStyle"
+      responses:
+        "200":
+          description: Onboarding berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Onboarding completed successfully"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/User"
+        "409":
+          description: Profil sudah pernah dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User already completed onboarding."
+        "422":
+          description: Validasi gagal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+
+    get:
+      tags: [Profile]
+      summary: Ambil Profil Pengguna
+      responses:
+        "200":
+          description: Profil berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Profile retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      profile:
+                        allOf:
+                          - $ref: "#/components/schemas/UserProfile"
+                          - type: object
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                              updated_at:
+                                type: string
+                                format: date-time
+                                example: "2026-04-15T07:30:00Z"
+
+    put:
+      tags: [Profile]
+      summary: Update Profil Pengguna
+      description: |
+        Semua field opsional — kirim hanya field yang ingin diubah.
+        Jika `major` berubah, trigger async job untuk update payload filter di Qdrant.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                major:
+                  type: string
+                  maxLength: 255
+                semester:
+                  type: integer
+                  minimum: 1
+                  maximum: 14
+                language_preference:
+                  $ref: "#/components/schemas/LanguagePreference"
+                learning_style:
+                  $ref: "#/components/schemas/LearningStyle"
+      responses:
+        "200":
+          description: Profil berhasil diupdate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Profile updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      profile:
+                        $ref: "#/components/schemas/UserProfile"
+        "422":
+          description: Validasi gagal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+
+  # ╔═══════════════════════════════════════════════════════════╗
+  # ║  C. TOOLS — REQ-F02, REQ-F04                             ║
+  # ╚═══════════════════════════════════════════════════════════╝
+
+  /tools:
+    get:
+      tags: [Tools]
+      summary: Ambil Daftar Alat AI
+      description: |
+        Data diisi oleh Python scraper via webhook internal setiap 24 jam (REQ-F02).
+        Idealnya difilter berdasarkan `major` user dari profil untuk personalisasi.
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 12
+            maximum: 50
+        - name: category
+          in: query
+          schema:
+            $ref: "#/components/schemas/ToolCategory"
+        - name: pricing
+          in: query
+          schema:
+            $ref: "#/components/schemas/PricingType"
+      responses:
+        "200":
+          description: Daftar alat AI berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tools retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      tools:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Tool"
+                      pagination:
+                        $ref: "#/components/schemas/Pagination"
+
+  /tools/search:
+    get:
+      tags: [Tools]
+      summary: Cari Alat AI via Hybrid Search Qdrant
+      description: |
+        Pencarian hibrida: dense vector similarity (cosine) + sparse vector filtering
+        berdasarkan profil user (major, language). Skor relevansi minimum: **0.85** (REQ-F04).
+
+        Fallback ke MySQL `LIKE` query jika Qdrant tidak tersedia (REQ-NF02: latency < 50ms).
+
+        **Embedding:** OpenAI `text-embedding-3-small` — dimensi 1536.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Query teks bebas dari user
+          schema:
+            type: string
+            example: "tools untuk literature review skripsi"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 5
+            maximum: 20
+      responses:
+        "200":
+          description: Pencarian berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Search completed successfully"
+                  data:
+                    type: object
+                    properties:
+                      query:
+                        type: string
+                        example: "tools untuk literature review skripsi"
+                      results:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: "#/components/schemas/Tool"
+                            - type: object
+                              properties:
+                                score:
+                                  type: number
+                                  format: float
+                                  example: 0.94
+                                why_recommended:
+                                  type: string
+                                  example: "Relevan untuk mahasiswa Teknik Informatika yang membutuhkan alat riset akademik terverifikasi."
+        "422":
+          description: Query kosong
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+        "503":
+          description: Qdrant tidak tersedia
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Search service temporarily unavailable."
+
+  /tools/{id}:
+    get:
+      tags: [Tools]
+      summary: Detail Satu Alat AI
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        "200":
+          description: Detail alat AI berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tool retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      tool:
+                        allOf:
+                          - $ref: "#/components/schemas/Tool"
+                          - type: object
+                            properties:
+                              scraped_at:
+                                type: string
+                                format: date-time
+                                example: "2026-05-04T00:00:00Z"
+        "404":
+          description: Tool tidak ditemukan
+
+  # ╔═══════════════════════════════════════════════════════════╗
+  # ║  D. TASKS — REQ-F03                                      ║
+  # ╚═══════════════════════════════════════════════════════════╝
+
+  /tasks:
+    post:
+      tags: [Tasks]
+      summary: Submit Tugas untuk Dekomposisi Async
+      description: |
+        Kirim tugas dalam bentuk teks mentah atau PDF (base64-encoded).
+        Proses berjalan async via Laravel Queue + Redis — response HTTP 202.
+        Frontend harus polling `GET /tasks/{taskId}/status` setiap 2 detik.
+
+        **Job pipeline:**
+        1. Ekstrak teks (langsung atau dari PDF base64 via `spatie/pdf-to-text`)
+        2. Chunk → LLM (KERNEL prompt) → parse JSON output
+        3. Query Qdrant per sub-task → simpan ke `tasks_master` + `atomic_sub_tasks`
+
+        `pdf_base64` dan `text` bersifat mutually exclusive — kirim salah satu.
+        Simpan `source_pdf_hash` (SHA-256) untuk deduplication.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  description: Teks deskripsi tugas (gunakan `text` atau `pdf_base64`, bukan keduanya)
+                  example: "Bantu aku susun skripsi tentang machine learning untuk deteksi penyakit"
+                pdf_base64:
+                  type: string
+                  format: byte
+                  description: Konten file PDF di-encode Base64, maks 10MB setelah decode
+                  example: "JVBERi0xLjQK..."
+                description:
+                  type: string
+                  nullable: true
+                  example: "Proposal skripsi semester 6"
+            examples:
+              textInput:
+                summary: Input teks mentah
+                value:
+                  text: "Bantu aku susun skripsi tentang machine learning untuk deteksi penyakit"
+                  description: "Opsional"
+              pdfInput:
+                summary: Input PDF (base64)
+                value:
+                  pdf_base64: "JVBERi0xLjQK..."
+                  description: "Proposal skripsi semester 6"
+      responses:
+        "202":
+          description: Task diterima dan sedang diproses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Task submitted for processing"
+                  data:
+                    type: object
+                    properties:
+                      task_id:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        example: "processing"
+                      estimated_seconds:
+                        type: integer
+                        example: 25
+                      poll_url:
+                        type: string
+                        example: "/api/tasks/uuid/status"
+        "422":
+          description: Validasi gagal (text dan pdf_base64 keduanya kosong)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+
+    get:
+      tags: [Tasks]
+      summary: Daftar Semua Task Milik User
+      responses:
+        "200":
+          description: Daftar task berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tasks retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      tasks:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            task_id:
+                              type: string
+                              format: uuid
+                            title:
+                              type: string
+                              example: "Menyusun Skripsi Teknik Informatika"
+                            status:
+                              $ref: "#/components/schemas/TaskStatus"
+                            sub_tasks_count:
+                              type: integer
+                              example: 5
+                            completed_count:
+                              type: integer
+                              example: 2
+                            source_type:
+                              type: string
+                              enum: [text, pdf]
+                            created_at:
+                              type: string
+                              format: date-time
+                      pagination:
+                        $ref: "#/components/schemas/Pagination"
+
+  /tasks/{taskId}:
+    get:
+      tags: [Tasks]
+      summary: Detail Task Beserta Sub-Tasks
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Detail task berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Task retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      task:
+                        type: object
+                        properties:
+                          task_id:
+                            type: string
+                            format: uuid
+                          title:
+                            type: string
+                            example: "Menyusun Skripsi Teknik Informatika"
+                          status:
+                            $ref: "#/components/schemas/TaskStatus"
+                          source_type:
+                            type: string
+                            enum: [text, pdf]
+                          created_at:
+                            type: string
+                            format: date-time
+                          sub_tasks:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/SubTask"
+        "404":
+          description: Task tidak ditemukan
+
+    delete:
+      tags: [Tasks]
+      summary: Hapus Task Beserta Sub-Tasks
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Task berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Task deleted successfully"
+        "404":
+          description: Task tidak ditemukan
+
+  /tasks/{taskId}/status:
+    get:
+      tags: [Tasks]
+      summary: Polling Status Pemrosesan Task Async
+      description: |
+        Gunakan untuk polling setiap 2 detik sampai `status` berubah dari `processing`.
+
+        **Alternatif real-time:** WebSocket via Laravel Broadcasting
+        — event `TaskCompleted`, channel `private-user.{userId}`.
+
+        Sertakan `error_message` jika `status: failed`.
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Status task berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Task status retrieved"
+                  data:
+                    type: object
+                    properties:
+                      task_id:
+                        type: string
+                        format: uuid
+                      status:
+                        $ref: "#/components/schemas/TaskStatus"
+                      progress_message:
+                        type: string
+                        example: "Sub-tasks berhasil dibuat"
+                      sub_tasks_count:
+                        type: integer
+                        example: 5
+                      ready:
+                        type: boolean
+                        example: true
+                      error_message:
+                        type: string
+                        nullable: true
+
+  /tasks/{taskId}/sub-tasks/{subTaskId}:
+    patch:
+      tags: [Tasks]
+      summary: Update Status Sub-Task
+      description: Atomic Habits loop kebiasaan — tandai sub-task selesai atau aktifkan sub-task berikutnya.
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: subTaskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  $ref: "#/components/schemas/SubTaskStatus"
+            example:
+              status: "done"
+      responses:
+        "200":
+          description: Status sub-task berhasil diupdate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Sub-task updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      sub_task:
+                        type: object
+                        properties:
+                          sub_task_id:
+                            type: string
+                            format: uuid
+                          actionable_title:
+                            type: string
+                            example: "Cari Topik"
+                          status:
+                            $ref: "#/components/schemas/SubTaskStatus"
+        "422":
+          description: Validasi gagal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+
+  # ╔═══════════════════════════════════════════════════════════╗
+  # ║  E. CHAT — REQ-F04                                       ║
+  # ╚═══════════════════════════════════════════════════════════╝
+
+  /chat:
+    post:
+      tags: [Chat]
+      summary: Kirim Pesan dan Dapatkan Respons RAG
+      description: |
+        **Pipeline RAG (Agentic — anti-halusinasi):**
+        1. Embed query → vektor 1536 dim (OpenAI `text-embedding-3-small`)
+        2. Hybrid search Qdrant collection `tools_semantic_vectors`
+        3. Filter parametrik: `category_filter` sesuai `major` user
+        4. Ambil 3–5 entri skor ≥ 0.85 (REQ-F04)
+        5. Suntikkan ke prompt LLM sebagai konteks
+        6. Simpan conversation + messages ke DB
+
+        LLM hanya boleh mensintesis respons dari data yang disuntikkan dari Qdrant.
+
+        **Rate limit:** `throttle:30,1` (maks 30 request per menit per user).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  example: "Bantu aku cari tools untuk analisis data statistik"
+                context_task_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: ID task yang sedang aktif untuk konteks tambahan (opsional)
+      responses:
+        "200":
+          description: Respons RAG berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Chat response generated"
+                  data:
+                    type: object
+                    properties:
+                      reply:
+                        type: string
+                        example: "Untuk analisis data statistik, saya rekomendasikan Julius AI karena kemampuannya menganalisis spreadsheet dengan bahasa natural..."
+                      recommended_tools:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: "#/components/schemas/Tool"
+                            - type: object
+                              properties:
+                                score:
+                                  type: number
+                                  format: float
+                                  example: 0.95
+                      conversation_id:
+                        type: string
+                        format: uuid
+        "422":
+          description: Validasi gagal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+        "429":
+          description: Rate limit tercapai (30 req/menit)
+
+  /chat/history:
+    get:
+      tags: [Chat]
+      summary: Ambil Riwayat Percakapan
+      responses:
+        "200":
+          description: Riwayat chat berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Chat history retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      conversations:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            title:
+                              type: string
+                              example: "Bantu saya susun skripsi"
+                            last_message:
+                              type: string
+                              example: "Untuk subtask Cari Topik, saya sarankan Perplexity AI..."
+                            created_at:
+                              type: string
+                              format: date-time
+                      pagination:
+                        $ref: "#/components/schemas/Pagination"
+
+    delete:
+      tags: [Chat]
+      summary: Hapus Semua Riwayat Chat
+      responses:
+        "200":
+          description: Riwayat chat berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Chat history cleared successfully"
+
+  # ╔═══════════════════════════════════════════════════════════╗
+  # ║  F. BOOKMARKS — REQ-F05                                  ║
+  # ╚═══════════════════════════════════════════════════════════╝
+
+  /bookmarks:
+    post:
+      tags: [Bookmarks]
+      summary: Simpan Alat ke Library Pribadi
+      description: |
+        LLM berperan sebagai agen auditor — tagging berjalan async via Queue Worker.
+        Prompt KERNEL: evaluasi korelasi tool dengan `major` user → output kuadran + tepat 5 keywords.
+        Setelah tagging selesai: update `utility_priority`, `semantic_keywords`, `tagging_status: completed`.
+        Broadcast event `BookmarkTagged` ke frontend jika WebSocket aktif.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tool_id]
+              properties:
+                tool_id:
+                  type: integer
+                  example: 1
+                note:
+                  type: string
+                  nullable: true
+                  example: "Digunakan untuk bab 2 skripsi"
+      responses:
+        "202":
+          description: Bookmark disimpan, AI tagging sedang berjalan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tool saved. AI tagging in progress."
+                  data:
+                    type: object
+                    properties:
+                      bookmark_id:
+                        type: string
+                        format: uuid
+                      tool_id:
+                        type: integer
+                        example: 1
+                      tool_name:
+                        type: string
+                        example: "Perplexity AI"
+                      tagging_status:
+                        $ref: "#/components/schemas/TaggingStatus"
+                      note:
+                        type: string
+                        nullable: true
+        "422":
+          description: Validasi gagal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+
+    get:
+      tags: [Bookmarks]
+      summary: Daftar Bookmark dengan Filter
+      parameters:
+        - name: priority
+          in: query
+          schema:
+            $ref: "#/components/schemas/UtilityPriority"
+        - name: category
+          in: query
+          schema:
+            $ref: "#/components/schemas/ToolCategory"
+        - name: q
+          in: query
+          description: Cari berdasarkan nama tool, keyword semantik, atau catatan
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [latest, oldest, rating, az, za]
+            default: latest
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Daftar bookmark berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Bookmarks retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      bookmarks:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            tool:
+                              $ref: "#/components/schemas/Tool"
+                            utility_priority:
+                              $ref: "#/components/schemas/UtilityPriority"
+                            priority_label:
+                              type: string
+                              example: "Wajib Dicoba"
+                            semantic_keywords:
+                              type: array
+                              maxItems: 5
+                              items:
+                                type: string
+                              example: ["literature review", "sumber terverifikasi", "riset cepat", "academic search", "AI search"]
+                            tagging_status:
+                              $ref: "#/components/schemas/TaggingStatus"
+                            note:
+                              type: string
+                              nullable: true
+                            saved_at:
+                              type: string
+                              format: date-time
+                      pagination:
+                        $ref: "#/components/schemas/Pagination"
+
+  /bookmarks/tags:
+    get:
+      tags: [Bookmarks]
+      summary: Daftar Semua Tag Semantik Unik Milik User
+      description: Digunakan untuk cloud tag navigasi dinamis di halaman Library.
+      responses:
+        "200":
+          description: Tags berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tags retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      tags:
+                        type: array
+                        items:
+                          type: string
+                        example: ["literature review", "jurnal", "sitasi", "peer review", "coding", "autocomplete"]
+
+  /bookmarks/{toolId}:
+    delete:
+      tags: [Bookmarks]
+      summary: Hapus Bookmark
+      parameters:
+        - name: toolId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        "200":
+          description: Bookmark berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Bookmark removed successfully"
+        "404":
+          description: Bookmark tidak ditemukan
+
+  # ╔═══════════════════════════════════════════════════════════╗
+  # ║  G. INTERNAL — REQ-F02                                   ║
+  # ╚═══════════════════════════════════════════════════════════╝
+
+  /internal/scraper-webhook:
+    post:
+      tags: [Internal]
+      summary: Penerima Data Python Scraper
+      description: |
+        Python scraper menggunakan `curl_cffi` + BoringSSL untuk bypass Cloudflare WAF (REQ-NF01).
+        Setelah data diterima, trigger async job: generate embedding (OpenAI `text-embedding-3-small`,
+        1536 dim) → upsert ke koleksi Qdrant `tools_semantic_vectors`.
+
+        **Keamanan:**
+        - Validasi `X-Scraper-Secret` dari `.env` — jangan gunakan Sanctum token
+        - Tambahkan IP whitelist server scraper di middleware
+        - Dijadwalkan otomatis setiap 24 jam via Laravel Scheduler
+      security:
+        - scraperSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tools, scraped_at, source]
+              properties:
+                tools:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, url, description, category, pricing_type]
+                    properties:
+                      name:
+                        type: string
+                        example: "Perplexity AI"
+                      url:
+                        type: string
+                        example: "perplexity.ai"
+                      description:
+                        type: string
+                        example: "Mesin pencari berbasis AI dengan sumber terverifikasi."
+                      category:
+                        $ref: "#/components/schemas/ToolCategory"
+                      pricing_type:
+                        $ref: "#/components/schemas/PricingType"
+                scraped_at:
+                  type: string
+                  format: date-time
+                  example: "2026-05-04T00:00:00Z"
+                source:
+                  type: string
+                  example: "theresanaiforthat.com/timeline/"
+      responses:
+        "200":
+          description: Data scraper berhasil diterima
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Scraper data received"
+                  data:
+                    type: object
+                    properties:
+                      upserted_count:
+                        type: integer
+                        example: 12
+                      skipped_count:
+                        type: integer
+                        example: 3
+        "401":
+          description: Secret key tidak valid atau tidak disertakan
+        "403":
+          description: IP server tidak di-whitelist
+        "422":
+          description: Validasi payload gagal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
