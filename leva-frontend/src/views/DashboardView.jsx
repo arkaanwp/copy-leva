@@ -397,7 +397,7 @@ function FeaturedToolCard({ tool, onSave, isSaved, isSaving, onOpenDetail }) {
         <span style={{ display: 'flex', flexShrink: 0 }}><AppIcon name={tool.iconKey} size={24} /></span>
       </div>
 
-      <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.55 }}>
+      <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.55, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
         {tool.desc}
       </p>
       <StarRating rating={tool.rating} />
@@ -530,11 +530,11 @@ function SmallToolCard({ tool, onSave, isSaved, isSaving, onOpenDetail }) {
           {isSaved ? t('tool.saved') : isSaving ? t('tool.saving') : t('tool.save')}
         </button>
       </div>
-      <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+      <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
         {tool.desc}
       </p>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)' }}>{displayToolUrl(tool.url)}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', wordBreak: 'break-all', overflowWrap: 'break-word' }}>{displayToolUrl(tool.url)}</span>
         <StarRating rating={tool.rating} />
       </div>
     </div>
@@ -1062,7 +1062,7 @@ export default function DashboardView() {
                     </span>
                   </div>
 
-                  <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                  <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                     {toolObj.desc}
                   </p>
                   
@@ -1074,7 +1074,9 @@ export default function DashboardView() {
                     fontSize: 11.5,
                     color: 'var(--color-text-secondary)',
                     lineHeight: 1.5,
-                    marginBottom: 16
+                    marginBottom: 16,
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word'
                   }}>
                     <strong style={{ color: 'var(--color-primary)', display: 'block', marginBottom: 2 }}>
                       {language === 'en' ? '💡 Recommended usage:' : '💡 Penggunaan yang disarankan:'}
