@@ -128,7 +128,7 @@ function SavedToolCard({ tool, onDelete, onOpenDetail }) {
   return (
     <div
       className="card"
-      style={{ padding: '18px 20px', transition: 'transform 0.2s, box-shadow 0.2s' }}
+      style={{ padding: '18px 20px', transition: 'transform 0.2s, box-shadow 0.2s', minWidth: 0 }}
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)'; }}
     >
@@ -153,7 +153,7 @@ function SavedToolCard({ tool, onDelete, onOpenDetail }) {
           >
             {tool.name}
           </h3>
-          <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
             <span style={{ display: 'flex', flexShrink: 0 }}><AppIcon name="link" size={12} /></span>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
               {tool.url}
@@ -775,7 +775,7 @@ export default function LibraryView() {
               </button>
             </div>
           ) : (
-            <div className="library-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+            <div className="library-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
               {filtered.map(tool => (
                 <SavedToolCard key={tool.id} tool={tool} onDelete={handleDeleteRequest} onOpenDetail={handleOpenDetail} />
               ))}
