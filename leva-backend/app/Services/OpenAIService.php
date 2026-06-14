@@ -35,8 +35,30 @@ class OpenAIService
 
     public function embedText(string $text): array
     {
-        // Nex-N2-Pro via OpenRouter free tier does not support embedding natively.
-        // Returning an empty array forces the system to gracefully fallback to MySQL text matching.
+        $baseUrl = config('services.openai.base_url', 'https://api.openai.com/v1');
+        
+        // OpenRouter free tier usually lacks reliable embeddings. 
+        // This is meant to be used with native OpenAI keys.
+        $payload = [
+            'model' => config('services.openai.embedding_model', 'text-embedding-3-small'),
+            'input' => $text,
+        ];
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . config('services.openai.api_key'),
+                'Content-Type' => 'application/json',
+            ])
+            ->timeout(30)
+            ->post($baseUrl . '/embeddings', $payload);
+
+            if ($response->successful()) {
+                return $response->json('data.0.embedding') ?? [];
+            }
+        } catch (\Throwable $e) {
+            // Ignore error and return empty array to trigger MySQL fallback
+        }
+
         return [];
     }
 
