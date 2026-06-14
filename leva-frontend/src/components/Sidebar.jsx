@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import Modal from './Modal';
 import AppIcon from './AppIcon';
+import { taskService } from '../services/taskService';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'sidebar.dashboard', icon: 'home' },
@@ -24,11 +25,54 @@ export default function Sidebar() {
     isDarkMode,
     toggleTheme,
     t,
+    showToast,
   } = useApp();
   const [showSettings, setShowSettings] = useState(false);
   const [notif, setNotif]       = useState(true);
   const [searchVal, setSearchVal] = useState('');
   const searchInputRef = useRef(null);
+  const [hoveredTaskId, setHoveredTaskId] = useState(null);
+  const [isDeletingTaskId, setIsDeletingTaskId] = useState(null);
+
+  const handleDeleteTask = async (e, taskId) => {
+    e.stopPropagation();
+    if (isDeletingTaskId) return;
+
+    const taskTitle = historyTasks.find(task => (task.task_id ?? task.id) === taskId)?.title ?? '';
+    const confirmDelete = window.confirm(
+      (t('library.deleteConfirm') || 'Apakah kamu yakin ingin menghapus') + ` "${taskTitle}"?`
+    );
+    if (!confirmDelete) return;
+
+    setIsDeletingTaskId(taskId);
+    try {
+      await taskService.deleteTask(taskId);
+      
+      if (showToast) {
+        showToast(
+          t('sidebar.taskDeleted') === 'sidebar.taskDeleted'
+            ? 'Tugas berhasil dihapus'
+            : t('sidebar.taskDeleted'),
+          'info'
+        );
+      }
+
+      if (refreshHistoryTasks) {
+        await refreshHistoryTasks();
+      }
+
+      if (activeTaskId === taskId) {
+        setActiveTask(null);
+        setActiveView('dashboard');
+      }
+    } catch (error) {
+      if (showToast) {
+        showToast('Gagal menghapus tugas. Silakan coba lagi.', 'error');
+      }
+    } finally {
+      setIsDeletingTaskId(null);
+    }
+  };
 
   const activeTaskId = activeTask?.task_id ?? activeTask?.id;
 
@@ -201,36 +245,86 @@ export default function Sidebar() {
             const taskId = task.task_id ?? task.id;
             const isActive = taskId && taskId === activeTaskId;
             const dateLabel = formatHistoryDate(task.created_at ?? task.date);
+            const isHovered = taskId && taskId === hoveredTaskId;
+            const isDeleting = taskId && taskId === isDeletingTaskId;
 
             return (
-            <button
-              key={taskId ?? task.title}
-              type="button"
-              onClick={() => handleHistoryClick(task)}
-              style={{
-                width: '100%',
-                border: 'none',
-                textAlign: 'left',
-                padding: '8px 10px', borderRadius: 9, cursor: 'pointer',
-                background: isActive ? 'rgba(108,99,255,0.25)' : 'transparent',
-                marginBottom: 2,
-                transition: 'background 0.2s ease',
-              }}
-              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
-            >
-              <p style={{
-                margin: 0, fontSize: 13, fontWeight: isActive ? 600 : 400,
-                color: isActive ? '#fff' : 'var(--color-sidebar-text)',
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              }}>
-                {task.title}
-              </p>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--color-sidebar-text-muted)', marginTop: 2 }}>
-                {dateLabel}
-              </p>
-            </button>
-          );
+              <div
+                key={taskId ?? task.title}
+                onMouseEnter={() => setHoveredTaskId(taskId)}
+                onMouseLeave={() => setHoveredTaskId(null)}
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  marginBottom: 2,
+                  borderRadius: 9,
+                  background: isActive ? 'rgba(108,99,255,0.25)' : (isHovered ? 'rgba(255,255,255,0.05)' : 'transparent'),
+                  transition: 'background 0.2s ease',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleHistoryClick(task)}
+                  disabled={isDeleting}
+                  style={{
+                    width: '100%',
+                    border: 'none',
+                    textAlign: 'left',
+                    padding: '8px 36px 8px 10px', 
+                    borderRadius: 9, 
+                    cursor: isDeleting ? 'not-allowed' : 'pointer',
+                    background: 'transparent',
+                    opacity: isDeleting ? 0.5 : 1,
+                    transition: 'all 0.2s ease',
+                    display: 'block',
+                  }}
+                >
+                  <p style={{
+                    margin: 0, fontSize: 13, fontWeight: isActive ? 600 : 400,
+                    color: isActive ? '#fff' : 'var(--color-sidebar-text)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}>
+                    {task.title}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 11, color: 'var(--color-sidebar-text-muted)', marginTop: 2 }}>
+                    {dateLabel}
+                  </p>
+                </button>
+
+                {taskId && (isHovered || isDeleting) && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteTask(e, taskId)}
+                    disabled={isDeleting}
+                    title="Hapus tugas"
+                    style={{
+                      position: 'absolute',
+                      right: 8,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: isDeleting ? 'not-allowed' : 'pointer',
+                      padding: 4,
+                      borderRadius: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: isDeleting ? 'var(--color-sidebar-text-muted)' : 'rgba(255, 100, 100, 0.85)',
+                      transition: 'color 0.2s, background 0.2s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#ff4d4d'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255, 100, 100, 0.85)'; e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    {isDeleting ? (
+                      <AppIcon name="loader" size={14} className="animate-spin" />
+                    ) : (
+                      <AppIcon name="trash" size={14} />
+                    )}
+                  </button>
+                )}
+              </div>
+            );
           })}
         </div>
 

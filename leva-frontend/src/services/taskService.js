@@ -5,7 +5,8 @@ export const taskService = {
     const formData = new FormData();
     if (file) {
       formData.append('pdf_file', file);
-    } else if (text) {
+    }
+    if (text) {
       formData.append('text', text);
     }
 

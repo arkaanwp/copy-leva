@@ -41,6 +41,22 @@ class ChatController extends Controller
         $tools = ScrapedTool::query()->whereIn('id', $toolIds)->get();
 
         if ($tools->isEmpty()) {
+            $query = trim($request->message);
+            $tools = ScrapedTool::query()
+                ->where(function ($builder) use ($query) {
+                    $builder
+                        ->where('name', 'like', "%{$query}%")
+                        ->orWhere('description', 'like', "%{$query}%");
+                })
+                ->orderByDesc('rating')
+                ->limit(5)
+                ->get();
+            
+            // Collect the MySQL ids as recommended tool IDs
+            $toolIds = $tools->pluck('id')->toArray();
+        }
+
+        if ($tools->isEmpty()) {
             $reply = "Maaf, saya tidak menemukan alat yang cukup relevan dengan spesifikasi pertanyaan Anda. Mohon reformulasi pertanyaan Anda atau gunakan kata kunci yang berbeda.";
         } else {
             $aiResponse = $this->openAIService->generateChatReply($request->message, $tools->all(), $language);
@@ -68,7 +84,7 @@ class ChatController extends Controller
         ]);
 
         $recommendedToolsResponse = $tools->map(function (ScrapedTool $tool) use ($qdrantResults) {
-            $matchedScore = collect($qdrantResults)->firstWhere('tool_mysql_id', $tool->id)['score'] ?? 0;
+            $matchedScore = collect($qdrantResults)->firstWhere('tool_mysql_id', $tool->id)['score'] ?? 1.0;
 
             return [
                 'id' => $tool->id,

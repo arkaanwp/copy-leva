@@ -11,6 +11,10 @@ export const chatService = {
     return data.data || data;
   },
 
+  async send(message, contextTaskId = null) {
+    return this.sendMessage(message, contextTaskId);
+  },
+
   async getHistory(params = {}) {
     const { data } = await api.get('/chat/history', { params });
     return data.data || data;

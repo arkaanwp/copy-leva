@@ -13,7 +13,7 @@ class ScraperSecret
         $secret = env('SCRAPER_SECRET_KEY');
 
         if (!$secret || $request->header('X-Scraper-Secret') !== $secret) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+            return response()->json(['message' => 'Forbidden'], 403);
         }
 
         return $next($request);

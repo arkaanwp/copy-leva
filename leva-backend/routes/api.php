@@ -24,7 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/profile', [ProfileController::class, 'store']);
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
-    Route::get('/tools/search', [ToolController::class, 'search']);
+    Route::get('/tools/search', [ToolController::class, 'search'])->middleware('throttle:30,1');
     Route::get('/tools', [ToolController::class, 'index']);
     Route::get('/tools/{id}', [ToolController::class, 'show']);
     Route::get('/tasks', [TaskController::class, 'index']);

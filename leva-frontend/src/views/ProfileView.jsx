@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { authService } from '../services/authService';
 import { profileService } from '../services/profileService';
 import { normalizeLanguage } from '../utils/i18n';
 import AppIcon from '../components/AppIcon';
@@ -94,7 +95,7 @@ export default function ProfileView() {
       try {
         await profileService.update({
           major: sanitizedForm.jurusan,
-          semester: sanitizedForm.semester,
+          semester: parseInt(sanitizedForm.semester, 10),
           language_preference: sanitizedForm.bahasa,
         });
       } catch { /* best-effort — profile still updates locally */ }
@@ -164,8 +165,11 @@ export default function ProfileView() {
     setEditMode(false);
   };
 
-  const handleLogoutOnly = () => {
+  const handleLogoutOnly = async () => {
     setProfileHasUnsavedChanges(false);
+    try {
+      await authService.logout();
+    } catch { /* best-effort */ }
     setUser(null);
     setActiveView('onboarding', { force: true });
   };

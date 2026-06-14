@@ -18,15 +18,15 @@ class QdrantService
 
     public function __construct(OpenAIService $openAIService)
     {
-        $this->host = env('QDRANT_HOST', 'http://localhost:6333');
-        $this->apiKey = env('QDRANT_API_KEY', '');
-        $this->collection = env('QDRANT_COLLECTION', 'tools_semantic_vectors');
+        $this->host = config('services.qdrant.host', env('QDRANT_HOST', 'http://localhost:6333'));
+        $this->apiKey = config('services.qdrant.api_key', env('QDRANT_API_KEY', ''));
+        $this->collection = config('services.qdrant.collection', env('QDRANT_COLLECTION', 'tools_semantic_vectors'));
         $this->openAIService = $openAIService;
     }
 
     private function getClient()
     {
-        $client = Http::baseUrl($this->host)->timeout(30);
+        $client = Http::baseUrl($this->host)->timeout(2);
         if ($this->apiKey) {
             $client = $client->withHeaders(['api-key' => $this->apiKey]);
         }
@@ -64,7 +64,18 @@ class QdrantService
 
     public function upsertTool(ScrapedTool $tool): void
     {
-        $this->ensureCollection();
+        $openaiKey = config('openai.api_key');
+        if (empty($openaiKey)) {
+            // Cannot embed without OpenAI key, skip upsert
+            return;
+        }
+
+        try {
+            $this->ensureCollection();
+        } catch (\Throwable $e) {
+            // Qdrant is offline, skip upsert
+            return;
+        }
 
         $textToEmbed = "Name: {$tool->name}. Description: {$tool->description}. Category: {$tool->category}";
         $vector = $this->openAIService->embedText($textToEmbed);
@@ -79,19 +90,23 @@ class QdrantService
             $tool->update(['qdrant_uuid' => $uuid]);
         }
 
-        $this->getClient()->put("/collections/{$this->collection}/points", [
-            'points' => [
-                [
-                    'id' => $uuid,
-                    'vector' => $vector,
-                    'payload' => [
-                        'tool_mysql_id' => $tool->id,
-                        'category_filter' => $tool->category,
-                        'extracted_description' => $tool->description,
+        try {
+            $this->getClient()->put("/collections/{$this->collection}/points", [
+                'points' => [
+                    [
+                        'id' => $uuid,
+                        'vector' => $vector,
+                        'payload' => [
+                            'tool_mysql_id' => $tool->id,
+                            'category_filter' => $tool->category,
+                            'extracted_description' => $tool->description,
+                        ],
                     ],
                 ],
-            ],
-        ])->throw();
+            ])->throw();
+        } catch (\Throwable $e) {
+            // Ignore Qdrant write failures
+        }
     }
 
     public function searchTools(string $query, ?string $categoryFilter = null, int $limit = 5, float $minScore = 0.85): array

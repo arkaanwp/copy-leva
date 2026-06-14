@@ -47,4 +47,14 @@ return [
         'embedding_model' => env('GEMINI_EMBEDDING_MODEL', 'text-embedding-004'),
     ],
 
+    'qdrant' => [
+        'host' => env('QDRANT_HOST', 'http://localhost:6333'),
+        'api_key' => env('QDRANT_API_KEY', ''),
+        'collection' => env('QDRANT_COLLECTION', 'tools_semantic_vectors'),
+    ],
+
+    'pdftotext' => [
+        'binary_path' => env('PDF_TO_TEXT_BINARY_PATH'),
+    ],
+
 ];

@@ -30,7 +30,7 @@ const iconByCategory = {
 };
 
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
-const ACCEPTED_ATTACHMENT_EXTENSIONS = ['pdf'];
+const ACCEPTED_ATTACHMENT_EXTENSIONS = ['pdf', 'txt', 'md'];
 const QUICK_PROMPTS_BY_JURUSAN = {
   teknikInformatika: ['Bantu susun skripsi', 'Debug kode Python', 'Review jurnal IEEE', 'Belajar framework baru'],
   ilmuKomunikasi: ['Analisis konten media', 'Susun proposal riset', 'Review teori komunikasi', 'Buat kerangka esai'],
@@ -38,6 +38,15 @@ const QUICK_PROMPTS_BY_JURUSAN = {
 };
 
 const getFileExtension = (fileName = '') => fileName.split('.').pop()?.toLowerCase() || '';
+
+const readFileAsText = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result || '');
+    reader.onerror = (e) => reject(e);
+    reader.readAsText(file);
+  });
+};
 
 const validateAttachment = (file) => {
   if (!file) return '__validation:noFile';
@@ -54,10 +63,15 @@ const validateAttachment = (file) => {
   return '';
 };
 
-const getGeneratedTaskTitle = (text, jurusan, attachedFile) => {
+const getGeneratedTaskTitle = (text, jurusan, attachedFiles) => {
   const raw = (text ?? '').toLowerCase();
 
-  if (attachedFile?.name) return `Memecah Tugas dari ${attachedFile.name}`;
+  if (attachedFiles && attachedFiles.length > 0) {
+    if (attachedFiles.length === 1) {
+      return `Memecah Tugas dari ${attachedFiles[0].name}`;
+    }
+    return `Memecah Tugas dari ${attachedFiles[0].name} dan ${attachedFiles.length - 1} file lainnya`;
+  }
   if (raw.includes('skripsi')) return `Menyusun Skripsi ${jurusan}`;
   if (raw.includes('essay')) return `Menulis Essay ${jurusan}`;
   if (raw.includes('koding') || raw.includes('coding')) return 'Belajar Koding dari Nol';
@@ -66,11 +80,11 @@ const getGeneratedTaskTitle = (text, jurusan, attachedFile) => {
   return 'Menyelesaikan Tugas Akademik';
 };
 
-const getEstimatedProcessingMs = ({ text, attachedFile }) => {
+const getEstimatedProcessingMs = ({ text, attachedFiles }) => {
   const baseMs = 12000;
   const textComplexityMs = Math.min((text ?? '').trim().length * 45, 15000);
-  const attachmentMs = attachedFile ? 5000 : 0;
-  return Math.min(baseMs + textComplexityMs + attachmentMs, 32000);
+  const attachmentMs = attachedFiles && attachedFiles.length > 0 ? attachedFiles.length * 3000 : 0;
+  return Math.min(baseMs + textComplexityMs + attachmentMs, 45000);
 };
 
 const getProcessingMessageKey = (elapsedSeconds) => {
@@ -349,7 +363,7 @@ export default function ChatWorkspaceView() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [followUpVal, setFollowUpVal]   = useState('');
   const [followUpMessages, setFollowUpMessages] = useState([]);
-  const [attachedFile, setAttachedFile] = useState(null);
+  const [attachedFiles, setAttachedFiles] = useState([]);
   const [fileError, setFileError]       = useState('');
   const [ragError, setRagError]         = useState('');
   const [lastSubmission, setLastSubmission] = useState(null);
@@ -487,7 +501,7 @@ export default function ChatWorkspaceView() {
     completionAnimationTimersRef.current.forEach((timerId) => clearTimeout(timerId));
   }, []);
 
-  const hasUnsentDraft = inputVal.trim().length > 0 || Boolean(attachedFile);
+  const hasUnsentDraft = inputVal.trim().length > 0 || attachedFiles.length > 0;
 
   useEffect(() => {
     hasUnsentDraftRef.current = hasUnsentDraft;
@@ -559,68 +573,94 @@ export default function ChatWorkspaceView() {
     return () => clearInterval(timer);
   }, [isLoading]);
 
-  const applyAttachment = (file) => {
-    /* UI/UX Fix: Step 6 — Menambah alternatif input device (file upload + drag-drop) untuk mengurangi beban kognitif memecah tugas. Survei: 76,3% user habiskan >15 menit sebelum mulai kerja. */
-    const validationError = validateAttachment(file);
+  const applyAttachments = (newFiles) => {
+    /* UI/UX Fix: Step 6 — Menambah alternatif input device (file upload + drag-drop) untuk mengurangi beban kognitif memecah tugas. */
+    const combinedFiles = [...attachedFiles, ...newFiles];
 
-    if (validationError) {
-      setAttachedFile(null);
-      let errorMsg = validationError;
-      if (validationError === '__validation:noFile') errorMsg = t('chat.fileValidation.noFile');
-      else if (validationError.startsWith('__validation:tooLarge:')) {
-        const size = validationError.split(':')[2];
-        errorMsg = t('chat.fileValidation.tooLarge').replace('{size}', size);
-      } else if (validationError === '__validation:unsupported') errorMsg = t('chat.fileValidation.unsupported');
-      setFileError(errorMsg);
+    if (combinedFiles.length > 10) {
+      setFileError('Maksimal 10 file PDF diperbolehkan.');
       return;
     }
 
-    setAttachedFile(file);
+    for (const file of newFiles) {
+      const validationError = validateAttachment(file);
+      if (validationError) {
+        let errorMsg = validationError;
+        if (validationError === '__validation:noFile') errorMsg = t('chat.fileValidation.noFile');
+        else if (validationError.startsWith('__validation:tooLarge:')) {
+          const size = validationError.split(':')[2];
+          errorMsg = t('chat.fileValidation.tooLarge').replace('{size}', size);
+        } else if (validationError === '__validation:unsupported') {
+          errorMsg = t('chat.fileValidation.unsupported');
+        }
+        setFileError(errorMsg);
+        return;
+      }
+    }
+
+    setAttachedFiles(combinedFiles);
     setFileError('');
     setRagError('');
   };
 
-  const removeAttachment = () => {
+  const removeAttachment = (indexToRemove) => {
     /* UI/UX Fix: Step 7 — Kontrol screen-based berupa chip removable membantu pengguna mengecek dan mengoreksi file sebelum mengirim. */
-    setAttachedFile(null);
+    setAttachedFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
     setFileError('');
   };
 
   const submitTaskToRag = async (submissionPayload) => {
     const trimmedText = (submissionPayload.text ?? '').trim();
-    const hasFile = Boolean(submissionPayload.attachedFile);
+    const attachedFiles = submissionPayload.attachedFiles || [];
+    const hasFile = attachedFiles.length > 0;
     if ((!trimmedText && !hasFile) || isLoading) return;
 
-    const estimatedMs = getEstimatedProcessingMs(submissionPayload);
+    // Filter PDFs and text files
+    const pdfFiles = attachedFiles.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+    const textFiles = attachedFiles.filter(f => !f.name.toLowerCase().endsWith('.pdf'));
+
+    if (pdfFiles.length > 1) {
+      setFileError('Leva hanya dapat menerima maksimal 1 file PDF saat ini.');
+      return;
+    }
 
     setIsLoading(true);
     setRagError('');
     setLoadingElapsedSeconds(0);
-    setEstimatedProcessingSeconds(Math.max(15, Math.round(estimatedMs / 1000)));
     setTaskTitle('');
     setSubTasks([]);
     setExpandedId(null);
-    setFollowUpMessages([]);
+    setJustCompletedTaskIds([]);
 
     try {
-      const result = await taskService.submit(submissionPayload.text, submissionPayload.attachedFile);
-      const taskId = result.task_id ?? result.id;
+      // Read text files in the frontend
+      let combinedText = trimmedText;
+      if (textFiles.length > 0) {
+        const textContents = await Promise.all(textFiles.map(file => readFileAsText(file)));
+        textContents.forEach((content, idx) => {
+          combinedText += `\n\n[Konten dari file: ${textFiles[idx].name}]\n${content}`;
+        });
+      }
 
+      const fileToSend = pdfFiles[0] || null;
+      const estimatedMs = getEstimatedProcessingMs({ text: combinedText, attachedFiles: pdfFiles });
+      setEstimatedProcessingSeconds(Math.max(15, Math.round(estimatedMs / 1000)));
+
+      const result = await taskService.submit(combinedText, fileToSend);
+      const taskId = result.task_id ?? result.id;
       setCurrentTaskId(taskId ?? null);
 
-      clearPolling();
-      pollingCleanupRef.current = taskService.pollStatus(
+      taskService.pollStatus(
         taskId,
-        async (taskFromPoll) => {
-          const task = taskFromPoll ?? await taskService.get(taskId);
+        async () => {
+          const task = await taskService.get(taskId);
           const normalizedSubTasks = (task.sub_tasks ?? []).map(normalizeSubTask);
-
-          setTaskTitle(task.title ?? getGeneratedTaskTitle(trimmedText, jurusan, submissionPayload.attachedFile));
+          setTaskTitle(task.title ?? getGeneratedTaskTitle(trimmedText, jurusan, pdfFiles));
           setSubTasks(normalizedSubTasks);
           setExpandedId(normalizedSubTasks[0]?.id ?? null);
           setActiveTask({ task_id: task.task_id ?? taskId, title: task.title });
           setInputVal('');
-          setAttachedFile(null);
+          setAttachedFiles([]);
           setFileError('');
           setRagError('');
           setIsLoading(false);
@@ -648,8 +688,8 @@ export default function ChatWorkspaceView() {
   };
 
   const handleAttachmentInput = (event) => {
-    const file = event.target.files?.[0];
-    if (file) applyAttachment(file);
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) applyAttachments(files);
     event.target.value = '';
   };
 
@@ -684,18 +724,18 @@ export default function ChatWorkspaceView() {
     dragCounterRef.current = 0;
     setIsDraggingFile(false);
 
-    const file = event.dataTransfer.files?.[0];
-    if (file) applyAttachment(file);
+    const files = Array.from(event.dataTransfer.files || []);
+    if (files.length > 0) applyAttachments(files);
   };
 
   const handleSubmit = () => {
     if (isLoading) return;
-    if (!inputVal.trim() && !attachedFile) return;
+    if (!inputVal.trim() && attachedFiles.length === 0) return;
     if (fileError) return;
 
     const submissionPayload = {
       text: inputVal,
-      attachedFile,
+      attachedFiles,
     };
 
     setLastSubmission(submissionPayload);
@@ -821,7 +861,7 @@ export default function ChatWorkspaceView() {
 
   const expandedTask  = subTasks.find(t => t.id === expandedId) ?? null;
   const hasResults    = subTasks.length > 0;
-  const canSendMessage = inputVal.trim().length > 0 || Boolean(attachedFile);
+  const canSendMessage = inputVal.trim().length > 0 || attachedFiles.length > 0;
   const processingMessage = t(getProcessingMessageKey(loadingElapsedSeconds));
   const rightPanelOpen = !!expandedTask;
   const savedToolIds = new Set(
@@ -958,31 +998,37 @@ export default function ChatWorkspaceView() {
                   ref={fileInputRef}
                   type="file"
                   accept=".pdf"
+                  multiple
                   onChange={handleAttachmentInput}
                   style={{ display: 'none' }}
                 />
 
-                {attachedFile && (
-                  <div
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 8,
-                      marginBottom: 10, background: 'var(--color-primary-light)',
-                      color: 'var(--color-primary)', borderRadius: 999, padding: '7px 12px',
-                      fontSize: 12, fontWeight: 600,
-                    }}
-                  >
-                    <AppIcon name="paperclip" size={12} />
-                    <span>{attachedFile.name}</span>
-                    <button
-                      onClick={removeAttachment}
-                      aria-label="Hapus file"
-                      style={{
-                        border: 'none', background: 'transparent', color: 'var(--color-primary)',
-                        cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center',
-                      }}
-                    >
-                      <AppIcon name="x" size={13} />
-                    </button>
+                {attachedFiles.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                    {attachedFiles.map((file, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 8,
+                          background: 'var(--color-primary-light)',
+                          color: 'var(--color-primary)', borderRadius: 999, padding: '7px 12px',
+                          fontSize: 12, fontWeight: 600,
+                        }}
+                      >
+                        <AppIcon name="paperclip" size={12} />
+                        <span>{file.name}</span>
+                        <button
+                          onClick={() => removeAttachment(idx)}
+                          aria-label="Hapus file"
+                          style={{
+                            border: 'none', background: 'transparent', color: 'var(--color-primary)',
+                            cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center',
+                          }}
+                        >
+                          <AppIcon name="x" size={13} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
 

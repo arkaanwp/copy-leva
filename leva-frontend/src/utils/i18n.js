@@ -276,8 +276,8 @@ const translations = {
     'chat.processing4': 'Hampir selesai, mohon tunggu sebentar...',
     'chat.fileValidation.noFile': 'Pilih file terlebih dahulu.',
     'chat.fileValidation.tooLarge': 'Ukuran file maksimal 10MB. File kamu {size}MB. Coba kompres terlebih dahulu.',
-    'chat.fileValidation.unsupported': 'Format file belum didukung. Saat ini Leva hanya menerima file PDF.',
-    'chat.uploadTooltip': 'Lampirkan file PDF silabus atau dokumen tugasmu',
+    'chat.fileValidation.unsupported': 'Format file belum didukung. Saat ini Leva menerima file PDF, TXT, dan MD.',
+    'chat.uploadTooltip': 'Lampirkan file PDF, TXT, atau MD tugasmu',
 
     // Settings modal (sidebar)
     'settings.darkMode': 'Dark Mode',
@@ -559,8 +559,8 @@ const translations = {
     'chat.processing4': 'Almost done, please wait...',
     'chat.fileValidation.noFile': 'Please select a file first.',
     'chat.fileValidation.tooLarge': 'Max file size is 10MB. Your file is {size}MB. Try compressing it first.',
-    'chat.fileValidation.unsupported': 'File format not supported. Currently Leva only accepts PDF files.',
-    'chat.uploadTooltip': 'Attach a PDF syllabus or task document',
+    'chat.fileValidation.unsupported': 'File format not supported. Currently Leva accepts PDF, TXT, and MD files.',
+    'chat.uploadTooltip': 'Attach a PDF, TXT, or MD task document',
 
     // Settings modal (sidebar)
     'settings.darkMode': 'Dark Mode',

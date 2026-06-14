@@ -222,37 +222,34 @@ export function AppProvider({ children }) {
     return true;
   };
 
-  const saveToolToLibrary = (tool) => {
-    const already = savedTools.find((t) => t.name === tool.name);
+  const saveToolToLibrary = async (tool) => {
+    const already = savedTools.find((t) => t.tool?.id === tool.id || t.name === tool.name);
     if (already) {
       showToast(`Tool ${tool.name} sudah ada di Library-mu.`, 'info');
       return false;
     }
 
-    /* UI/UX Fix: Step 6 — Output device harus memberi respond jelas ke aksi user. Step 7 — Aksi destruktif (hapus) harus ada safeguard/konfirmasi. Survei: 52,5% user sulit temukan referensi. */
-    const newEntry = {
-      id: Date.now(),
-      name: tool.name,
-      url: tool.url,
-      priority: 'Sangat Bagus',
-      priorityKey: 'good',
-      pricingType: tool.pricingType ?? 'freemium',
-      category: tool.category,
-      keywords: [tool.category.toLowerCase(), 'ai tools', 'leva'],
-      savedAt: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-      savedTimestamp: Date.now(),
-      description: tool.desc || '',
-      rating: tool.rating ?? 0,
-      note: '',
-    };
-    setSavedTools((prev) => [newEntry, ...prev]);
-    showToast(`${tool.name} berhasil disimpan ke Library!`, 'success');
-    return true;
+    try {
+      await bookmarkService.create(tool.id);
+      showToast(`${tool.name} disimpan! AI sedang men-tag... cek Library beberapa detik lagi.`, 'success');
+      refreshSavedTools();
+      return true;
+    } catch (err) {
+      const msg = err.response?.data?.message ?? `Gagal menyimpan ${tool.name}. Coba lagi.`;
+      showToast(msg, 'error');
+      return false;
+    }
   };
 
-  const removeToolFromLibrary = (toolId) => {
-    setSavedTools((prev) => prev.filter((t) => t.id !== toolId));
-    showToast('Tool berhasil dihapus', 'info');
+  const removeToolFromLibrary = async (toolId) => {
+    try {
+      await bookmarkService.deleteBookmark(toolId);
+      setSavedTools((prev) => prev.filter((t) => (t.tool?.id ?? t.id) !== toolId));
+      showToast('Tool berhasil dihapus', 'info');
+    } catch (err) {
+      const msg = err.response?.data?.message ?? 'Gagal menghapus. Coba lagi.';
+      showToast(msg, 'error');
+    }
   };
 
   return (

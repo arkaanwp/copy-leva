@@ -121,7 +121,7 @@ function PricingBadge({ pricingType }) {
 }
 
 // Saved Tool Card
-function SavedToolCard({ tool, onDelete }) {
+function SavedToolCard({ tool, onDelete, onOpenDetail }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -134,7 +134,21 @@ function SavedToolCard({ tool, onDelete }) {
       {/* Top row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
-          <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700 }}>{tool.name}</h3>
+          <h3 
+            onClick={() => onOpenDetail(tool.id)}
+            style={{ 
+              margin: '0 0 4px', 
+              fontSize: 15, 
+              fontWeight: 700, 
+              cursor: 'pointer',
+              transition: 'color 0.2s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--color-primary)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'inherit'}
+            title="Klik untuk melihat detail"
+          >
+            {tool.name}
+          </h3>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <AppIcon name="link" size={12} /> {tool.url}
           </p>
@@ -253,6 +267,34 @@ export default function LibraryView() {
   const [tags, setTags] = useState([]);
   const [selectedTag, setSelectedTag] = useState('');
   const requestRef = useRef(0);
+  const [selectedDetailTool, setSelectedDetailTool] = useState(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+
+  const handleOpenDetail = async (toolId) => {
+    setIsDetailLoading(true);
+    try {
+      const detail = await toolService.getToolDetail(toolId);
+      const pricingTypeRaw = detail.pricing_type ?? detail.pricingType ?? 'free';
+      const pricingType = typeof pricingTypeRaw === 'string' ? pricingTypeRaw.toLowerCase() : 'free';
+      
+      setSelectedDetailTool({
+        id: detail.id,
+        name: detail.name,
+        url: detail.url,
+        category: detail.category,
+        pricingType,
+        rating: Number(detail.rating ?? 0),
+        desc: detail.description ?? detail.desc ?? '',
+        detailDesc: detail.description ?? detail.detailDesc ?? detail.desc ?? '',
+      });
+    } catch (error) {
+      if (showToast) {
+        showToast(t('dashboard.failedLoadTools') || 'Gagal memuat detail tool.', 'error');
+      }
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
 
   const displayedTags = useMemo(() => {
     if (tags && tags.length > 0) return tags;
@@ -344,7 +386,7 @@ export default function LibraryView() {
         } else {
           data = await toolService.list({ per_page: 12 });
         }
-        if (isMounted) setSearchToolResults(data.tools ?? []);
+        if (isMounted) setSearchToolResults(data.tools ?? data.results ?? []);
       } catch {
         if (isMounted) setSearchToolResults([]);
       } finally {
@@ -732,7 +774,7 @@ export default function LibraryView() {
               ) : (
                 <div className="library-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
                   {filtered.map(tool => (
-                    <SavedToolCard key={tool.id} tool={tool} onDelete={handleDeleteRequest} />
+                    <SavedToolCard key={tool.id} tool={tool} onDelete={handleDeleteRequest} onOpenDetail={handleOpenDetail} />
                   ))}
                 </div>
               )}
@@ -868,6 +910,88 @@ export default function LibraryView() {
             </button>
           </div>
         </Modal>
+      )}
+      {/* Tool Detail Modal */}
+      {selectedDetailTool && (
+        <Modal 
+          title={selectedDetailTool.name} 
+          onClose={() => setSelectedDetailTool(null)}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className={`tag tag-${selectedDetailTool.category.toLowerCase()}`} style={{
+                background: selectedDetailTool.category === 'Research' ? '#EEF0FF' : 'var(--color-bg)',
+                color: 'var(--color-primary)',
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '3px 10px',
+                borderRadius: 999
+              }}>{selectedDetailTool.category}</span>
+              <PricingBadge pricingType={selectedDetailTool.pricingType} />
+            </div>
+            
+            <div>
+              <h4 style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {t('library.noteLabel') || 'Deskripsi / Catatan'}
+              </h4>
+              <p style={{ margin: 0, fontSize: 13.5, color: 'var(--color-text-primary)', lineHeight: 1.6 }}>
+                {selectedDetailTool.detailDesc || selectedDetailTool.desc}
+              </p>
+            </div>
+
+            <div>
+              <h4 style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Rating & Website
+              </h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                <span style={{ fontSize: 12, color: '#F59E0B', fontWeight: 600 }}>
+                  {'★'.repeat(Math.floor(selectedDetailTool.rating))}{'☆'.repeat(5 - Math.floor(selectedDetailTool.rating))}
+                  <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400, marginLeft: 4 }}>{selectedDetailTool.rating}</span>
+                </span>
+                <a 
+                  href={resolveToolUrl(selectedDetailTool.url)} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  {selectedDetailTool.url} <AppIcon name="external-link" size={14} />
+                </a>
+              </div>
+            </div>
+
+            <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setSelectedDetailTool(null)}
+                style={{ width: '100%', padding: '10px 0' }}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Loading Overlay */}
+      {isDetailLoading && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 5000,
+          backdropFilter: 'blur(2px)'
+        }}>
+          <div className="card" style={{ padding: '20px 30px', display: 'flex', alignItems: 'center', gap: 12, borderRadius: 16 }}>
+            <AppIcon name="loader" size={20} className="animate-spin" color="var(--color-primary)" />
+            <span style={{ fontWeight: 600, fontSize: 14 }}>{t('dashboard.loading') || 'Memuat detail...'}</span>
+          </div>
+        </div>
       )}
     </div>
   );
