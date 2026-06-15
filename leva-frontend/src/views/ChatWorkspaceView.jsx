@@ -10,14 +10,14 @@ import { playSoundEffect } from '../utils/sound';
 // --- Tag color helper
 const tagStyle = (cat) => {
   const map = {
-    Research:     { bg: '#EDE9FE', color: '#7C3AED' },
-    Writing:      { bg: '#FEF9C3', color: '#A16207' },
-    Coding:       { bg: '#DBEAFE', color: '#1D4ED8' },
-    Data:         { bg: '#DCFCE7', color: '#15803D' },
-    Academic:     { bg: '#FFE4E6', color: '#BE123C' },
-    Productivity: { bg: '#F0FDFA', color: '#0F766E' },
+    Research:     { background: '#EDE9FE', color: '#7C3AED' },
+    Writing:      { background: '#FEF9C3', color: '#A16207' },
+    Coding:       { background: '#DBEAFE', color: '#1D4ED8' },
+    Data:         { background: '#DCFCE7', color: '#15803D' },
+    Academic:     { background: '#FFE4E6', color: '#BE123C' },
+    Productivity: { background: '#F0FDFA', color: '#0F766E' },
   };
-  return map[cat] || { bg: 'var(--color-bg)', color: 'var(--color-text-secondary)' };
+  return map[cat] || { background: 'var(--color-bg)', color: 'var(--color-text-secondary)' };
 };
 
 const iconByCategory = {

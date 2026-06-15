@@ -203,6 +203,7 @@ class TaskController extends Controller
                         'name' => $tool->name,
                         'url' => $tool->url,
                         'category' => $tool->category,
+                        'description' => $tool->description,
                     ])
                     ->values(),
             ];
